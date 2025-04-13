@@ -1,5 +1,35 @@
 # 作業記録
 
+## 2025-04-13 タイムテーブル表示API実装（4.1）とタイムテーブル表示画面実装（4.2）
+
+- docs/implementation_plan.md「4.1 バックエンドAPI（番組データ取得、視聴中/全タイトル切替対応）」の要件に基づき、`backend/src/index.ts` に `/api/timetable` エンドポイントを実装
+- JWT認証ミドルウェア (`authenticateToken`) を適用
+- クエリパラメータ (`startDate`, `endDate`, `watchingOnly`) を受け付け、指定期間の `Episode` データを取得
+- `watchingOnly=true` の場合、ログインユーザーが視聴中 (`status='watching'`) のアニメのみに絞り込み
+- 取得データには関連する `Anime` および `Channel` の情報を含める
+- Prismaのクエリで `st_time` による期間フィルタリングとソート (`orderBy: { st_time: 'asc' }`) を実装
+- TypeScriptのエラー（重複プロパティ定義）を修正
+- docs/implementation_plan.md「4.2 フロントエンド（タイムテーブル画面、切替UI）」の要件に基づき、`frontend/src/Timetable.tsx` を新規作成
+  - 期間選択（1日/3日/7日）と視聴中/全タイトル切り替えのUIを実装
+  - `/api/timetable` から番組データを取得し、リスト表示
+  - 日付移動機能（前日/今日/翌日）を実装
+  - `frontend/src/App.tsx` を修正し、認証後に `Timetable` コンポーネントを表示するように変更
+  - JSXのエラー（HTMLエンティティ）を修正
+
+---
+
+## 2025-04-13 実装計画 1. プロジェクト初期セットアップ 完了
+
+- docs/implementation_plan.md「4.1 バックエンドAPI（番組データ取得、視聴中/全タイトル切替対応）」の要件に基づき、`backend/src/index.ts` に `/api/timetable` エンドポイントを実装
+- JWT認証ミドルウェア (`authenticateToken`) を適用
+- クエリパラメータ (`startDate`, `endDate`, `watchingOnly`) を受け付け、指定期間の `Episode` データを取得
+- `watchingOnly=true` の場合、ログインユーザーが視聴中 (`status='watching'`) のアニメのみに絞り込み
+- 取得データには関連する `Anime` および `Channel` の情報を含める
+- Prismaのクエリで `st_time` による期間フィルタリングとソート (`orderBy: { st_time: 'asc' }`) を実装
+- TypeScriptのエラー（重複プロパティ定義）を修正
+
+---
+
 ## 2025-04-13 実装計画 1. プロジェクト初期セットアップ 完了
 
 - .gitignore を技術スタックに合わせて作成

@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
+
+console.log('Debug: VITE_BACKEND_URL =', import.meta.env.VITE_BACKEND_URL); // デバッグログを追加
 import "./App.css";
 import LoginRegister from "./LoginRegister";
+import Timetable from "./Timetable"; // Timetableコンポーネントをインポート
 
 type User = { id: number; username: string; email: string };
 
@@ -49,7 +52,7 @@ function App() {
         </div>
       </header>
       <main>
-        <p>メイン画面（タブUIは今後実装）</p>
+        <Timetable token={token} /> {/* Timetableコンポーネントを表示 */}
       </main>
     </div>
   );
