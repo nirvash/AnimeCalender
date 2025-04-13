@@ -1,0 +1,46 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 環境変数
+.env
+.env.*
+
+# ビルド成果物
+dist/
+build/
+out/
+
+# テスト関連
+coverage/
+*.lcov
+
+# OS依存ファイル
+.DS_Store
+Thumbs.db
+
+# データベース
+*.sqlite
+*.db
+
+# Prisma
+prisma/dev.db
+prisma/migrations/
+
+# ロックファイル（どちらか一方のみ管理する場合は片方を無視）
+# package-lock.json
+# yarn.lock
+
+# React/TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# その他
+.next/
