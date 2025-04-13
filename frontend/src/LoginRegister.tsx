@@ -21,7 +21,7 @@ const LoginRegister: React.FC<Props> = ({ onAuthSuccess }) => {
 
     try {
       const endpoint =
-        mode === "login" ? "/api/auth/login" : "/api/auth/register";
+        mode === "login" ? `/api/auth/login` : `/api/auth/register`;
       const body =
         mode === "login"
           ? { email, password }
@@ -30,7 +30,7 @@ const LoginRegister: React.FC<Props> = ({ onAuthSuccess }) => {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       });
 
       const data = await res.json();
@@ -40,7 +40,8 @@ const LoginRegister: React.FC<Props> = ({ onAuthSuccess }) => {
         return;
       }
       onAuthSuccess(data.token, data.user);
-    } catch (err) {
+    } catch (err: Error | unknown) {
+      console.error('認証エラー:', err);
       setError("通信エラーが発生しました");
     } finally {
       setLoading(false);

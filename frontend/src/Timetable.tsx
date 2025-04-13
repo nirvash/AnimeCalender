@@ -39,7 +39,7 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
     const start = new Date(baseDate);
     start.setHours(0, 0, 0, 0); // 日付の開始時刻に設定
 
-    let end = new Date(start);
+    const end = new Date(start);
 
     switch (mode) {
       case 'day':
@@ -70,14 +70,9 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
     console.log("Token:", token); // トークンをコンソールに出力
 
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-      console.log('Debug: VITE_BACKEND_URL =', backendUrl); // デバッグログを追加
-      const response = await fetch(`${backendUrl}/api/timetable?startDate=${startDate}&endDate=${endDate}&watchingOnly=${watchingOnly}`, { // APIリクエスト先を環境変数から取得
-        mode: 'cors',
-        credentials: 'include', // ← 🔥これを絶対入れて！
+      const response = await fetch(`/api/timetable?startDate=${startDate}&endDate=${endDate}&watchingOnly=${watchingOnly}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Custom-Header': 'force-preflight', // プリフライトリクエストを強制
         },
       });
 
@@ -87,7 +82,7 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
         try {
           const errorData = await response.json();
           errorMsg = errorData.message || errorMsg;
-        } catch (e) {
+        } catch {
           // JSONパース失敗時はステータスコードのみ
         }
         throw new Error(errorMsg);
@@ -95,9 +90,9 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
 
       const data: Episode[] = await response.json();
       setEpisodes(data);
-    } catch (err: any) {
-      console.error("Failed to fetch timetable data:", err); // エラーログをコンソールに出力
-      setError(err.message || 'データの取得に失敗しました。');
+    } catch (error) {
+      console.error("Failed to fetch timetable data:", error);
+      setError(error instanceof Error ? error.message : 'データの取得に失敗しました。');
     } finally {
       setIsLoading(false);
     }

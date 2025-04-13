@@ -20,11 +20,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key';
 // CORS設定をより明示的に指定
 const allowedOrigin = 'https://bookish-space-capybara-pgr4p9qwvvf9xp5-5173.app.github.dev';
 
-app.use(cors({
-  origin: '*', // すべてのオリジンを許可
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // 許可するHTTPメソッド
-  allowedHeaders: ['Content-Type', 'Authorization'], // 許可するヘッダー
-}));
+app.use(cors()); // すべてのオリジンを許可
 
 app.use(bodyParser.json());
 
