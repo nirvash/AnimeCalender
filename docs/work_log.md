@@ -10,6 +10,18 @@
 
 ---
 
+## 2025-04-13 フロントエンド認証画面・認証フロー実装・テスト自動化（3.2/3完了）
+
+- docs/implementation_plan.md「3.2 フロントエンド（ログイン/新規登録画面、認証フロー）」の要件に従い、以下を実装
+  - ログイン/新規登録画面（LoginRegister.tsx）を新規作成し、UI・バリデーション・エラーハンドリングを実装
+  - 認証API（/api/auth/login, /api/auth/register）と連携し、正常時はJWTトークン・ユーザー情報をlocalStorageに保存
+  - App.tsxで認証状態（トークン有無）による画面切り替え（未認証時はログイン/新規登録画面、認証済み時はメイン画面プレースホルダー）を実装
+  - ログアウト機能を実装
+  - 必要なスタイル（App.css）を追加し、UIを整備
+- LoginRegister.test.tsxで正常系・異常系・統合フロー（新規登録→ログアウト→再ログイン）を含む自動テストを追加し、全テストパスを確認
+- 設計ドキュメント（ui_design.md, implementation_plan.md）に準拠し、要件逸脱なし
+- docs/implementation_plan.mdの3.1/3.2/3全体の進捗を[x]に更新し、「ユーザー認証」機能全体が完了
+
 ## 2025-04-13 ユーザー認証API（3.1）実装・動作確認
 
 - docs/implementation_plan.md「3.1 バックエンドAPI（登録・ログイン・JWT認証）」の要件に従い、Express+Prismaで認証API（/api/auth/register, /api/auth/login, JWT認証ミドルウェア）を実装
