@@ -1,0 +1,16 @@
+# 開発ルール（.clinerules）
+
+本プロジェクトの開発にあたっては、必ず docs 以下の設計ドキュメントを確認し、設計方針・仕様に従って実装を進めること。
+
+## 設計ドキュメント一覧
+- docs/requirements.md（要件定義・機能一覧）
+- docs/system_architecture.md（システム構成・技術スタック）
+- docs/data_model.md（ER図・データ構造）
+- docs/ui_design.md（画面構成・画面遷移図・UIイメージ）
+- docs/api_integration.md（しょぼいカレンダーAPI連携仕様）
+- docs/update_policy.md（データ自動更新仕様）
+
+## 運用ルール
+- 設計ドキュメントの内容を必ず確認し、逸脱する場合は設計を見直すこと
+- 設計ドキュメントに記載のない仕様追加・変更を行う場合は、必ずドキュメントを更新すること
+- 開発・レビュー時は .clinerules および設計ドキュメントを参照すること
