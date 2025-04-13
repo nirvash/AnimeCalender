@@ -25,6 +25,7 @@ Thumbs.db
 # データベース
 *.sqlite
 *.db
+*.db-journal
 
 # Prisma
 prisma/dev.db

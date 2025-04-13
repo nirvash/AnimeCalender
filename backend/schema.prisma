@@ -1,0 +1,99 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  username      String
+  email         String        @unique
+  password_hash String
+  userAnimes    UserAnime[]
+  userChannels  UserChannel[]
+}
+
+model Anime {
+  id            Int           @id @default(autoincrement())
+  title         String
+  syobocal_tid  String
+  userAnimes    UserAnime[]
+  episodes      Episode[]
+}
+
+model Channel {
+  id            Int           @id @default(autoincrement())
+  syobocal_cid  String        // ChID
+  name          String        // ChName
+  epg_name      String?       // ChiEPGName
+  url           String?       // ChURL
+  epg_url       String?       // ChEPGURL
+  comment       String?       // ChComment
+  gid           Int?          // ChGID
+  number        Int?          // ChNumber
+  last_update   DateTime?     // LastUpdate
+  area          String?
+  userChannels  UserChannel[]
+  episodes      Episode[]
+  userAnimes    UserAnime[]   @relation("UserAnimeChannel")
+}
+
+model UserAnime {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  anime_id     Int
+  channel_id   Int       // どの放送局で視聴しているか
+  status       String    // "watching", "watched", "plan_to_watch"
+  last_watched DateTime?
+  memo         String?
+
+  user    User    @relation(fields: [user_id], references: [id])
+  anime   Anime   @relation(fields: [anime_id], references: [id])
+  channel Channel @relation("UserAnimeChannel", fields: [channel_id], references: [id])
+
+  @@index([user_id])
+  @@index([anime_id])
+  @@index([channel_id])
+  @@unique([user_id, anime_id, channel_id])
+}
+
+model UserChannel {
+  id         Int     @id @default(autoincrement())
+  user_id    Int
+  channel_id Int
+
+  user    User    @relation(fields: [user_id], references: [id])
+  channel Channel @relation(fields: [channel_id], references: [id])
+
+  @@index([user_id])
+  @@index([channel_id])
+}
+
+// アニメ各回（エピソード）テーブル
+model Episode {
+  id           Int      @id @default(autoincrement())
+  pid          Int      @unique // ProgItemのPID
+  anime_id     Int
+  channel_id   Int
+  st_time      DateTime // 放送開始日時
+  ed_time      DateTime // 放送終了日時
+  count        Int?     // 話数（Count）
+  sub_title    String?  // サブタイトル
+  prog_comment String?  // コメント
+  flag         Int?
+  deleted      Boolean?
+  warn         Int?
+  revision     Int?
+  last_update  DateTime
+
+  anime   Anime   @relation(fields: [anime_id], references: [id])
+  channel Channel @relation(fields: [channel_id], references: [id])
+
+  @@index([anime_id])
+  @@index([channel_id])
+}
