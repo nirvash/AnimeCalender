@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 
-console.log('Debug: VITE_BACKEND_URL =', import.meta.env.VITE_BACKEND_URL); // デバッグログを追加
+console.log('Debug: VITE_BACKEND_URL =', import.meta.env.VITE_BACKEND_URL);
 import "./App.css";
 import LoginRegister from "./LoginRegister";
-import Timetable from "./Timetable"; // Timetableコンポーネントをインポート
+import Timetable from "./Timetable";
+import ChannelSettings from "./ChannelSettings";
 
 type User = { id: number; username: string; email: string };
 
 function App() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [activeTab, setActiveTab] = useState<'timetable' | 'settings'>('timetable');
 
   // 初回マウント時にlocalStorageからトークン復元
   useEffect(() => {
@@ -39,11 +41,10 @@ function App() {
     return <LoginRegister onAuthSuccess={handleAuthSuccess} />;
   }
 
-  // 認証済み: メイン画面（タブUIは今後実装）
   return (
     <div>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2>Animeカレンダー</h2>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 24px", borderBottom: "1px solid #ddd" }}>
+        <h2 style={{ margin: 0 }}>Animeカレンダー</h2>
         <div>
           <span>{user.username} さん</span>
           <button onClick={handleLogout} style={{ marginLeft: 12 }}>
@@ -51,8 +52,40 @@ function App() {
           </button>
         </div>
       </header>
-      <main>
-        <Timetable token={token} /> {/* Timetableコンポーネントを表示 */}
+      <nav style={{ borderBottom: "1px solid #ddd", padding: "0 24px" }}>
+        <button 
+          onClick={() => setActiveTab('timetable')} 
+          style={{ 
+            padding: "12px 24px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === 'timetable' ? "2px solid #007bff" : "none",
+            color: activeTab === 'timetable' ? "#007bff" : "#333",
+            cursor: "pointer"
+          }}
+        >
+          番組表
+        </button>
+        <button 
+          onClick={() => setActiveTab('settings')} 
+          style={{ 
+            padding: "12px 24px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === 'settings' ? "2px solid #007bff" : "none",
+            color: activeTab === 'settings' ? "#007bff" : "#333",
+            cursor: "pointer"
+          }}
+        >
+          放送局設定
+        </button>
+      </nav>
+      <main style={{ padding: "24px" }}>
+        {activeTab === 'timetable' ? (
+          <Timetable token={token} />
+        ) : (
+          <ChannelSettings token={token} />
+        )}
       </main>
     </div>
   );

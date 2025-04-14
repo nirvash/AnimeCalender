@@ -40,7 +40,9 @@ export class SyobocalClient {
       Command: 'TitleLookup',
     };
 
-    if (!tid) {
+    if (tid) {
+      params.TID = tid;
+    } else {
       // 放送予定のある番組のIDを取得
       const start = new Date();
       const end = new Date();
@@ -50,15 +52,13 @@ export class SyobocalClient {
       const programs = await this.getPrograms(range);
       
       // 放送予定のある番組のTIDを抽出（重複を除去）
-      const tids = [...new Set(programs.map((prog: SyobocalProgram) => prog.TID[0]))];
+      const tids = [...new Set(programs.map((prog: any) => prog.TID[0]))];
       if (tids.length > 0) {
         params.TID = tids.join(',');
       }
-    } else {
-      params.TID = tid;
     }
+
     const response = await this.request(params);
-    // TitleItemsが存在しない、または空の場合は空配列を返す
     return response?.TitleLookupResponse?.TitleItems?.[0]?.TitleItem || [];
   }
 

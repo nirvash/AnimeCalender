@@ -1,0 +1,100 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.deselectButton {
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.deselectButton:hover {
+  background-color: #d32f2f;
+}
+
+.deselectButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.description {
+  margin-bottom: 24px;
+  color: #666;
+}
+
+.group {
+  margin-bottom: 32px;
+}
+
+.groupName {
+  font-size: 1.2em;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #eee;
+}
+
+.channelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.channelItem {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.channelItem:hover {
+  background-color: #f5f5f5;
+}
+
+.checkbox {
+  margin-right: 8px;
+}
+
+.channelName {
+  flex: 1;
+}
+
+.error {
+  color: #e53935;
+  padding: 16px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.errorCloseButton {
+  background: none;
+  border: none;
+  color: #e53935;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 0 8px;
+}
+
+.errorCloseButton:hover {
+  opacity: 0.8;
+  margin-bottom: 16px;
+}
