@@ -122,6 +122,84 @@ router.post('/api/auth/login', async (req: Request, res: Response) => {
   }
 });
 
+// 視聴リスト管理API
+router.get('/api/watchlist/watching', authenticateToken, async (req: RequestWithUser, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).send();
+      return;
+    }
+
+    const watchingAnimeIds = await prisma.userAnime.findMany({
+      where: {
+        user_id: userId,
+        status: 'WATCHING',
+      },
+      select: {
+        anime_id: true,
+      },
+    });
+
+    const episodes = await prisma.episode.findMany({
+      where: {
+        anime_id: {
+          in: watchingAnimeIds.map((ua) => ua.anime_id),
+        },
+      },
+      include: {
+        anime: true,
+      },
+    });
+
+    res.json(episodes);
+  } catch (err) {
+    console.error('Error fetching watching episodes:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/api/watchlist/unwatched', authenticateToken, async (req: RequestWithUser, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).send();
+      return;
+    }
+
+    const watchedAnimeIds = await prisma.userAnime.findMany({
+      where: { user_id: userId },
+      select: { anime_id: true },
+    });
+
+    const unwatchedAnimeIds = await prisma.anime.findMany({
+      where: {
+        id: {
+          notIn: watchedAnimeIds.map((ua) => ua.anime_id),
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const episodes = await prisma.episode.findMany({
+      where: {
+        anime_id: {
+          in: unwatchedAnimeIds.map((anime) => anime.id),
+        },
+      },
+      include: {
+        anime: true,
+      },
+    });
+
+    res.json(episodes);
+  } catch (err) {
+    console.error('Error fetching unwatched episodes:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 // テスト用の認証保護ルート
 router.get('/api/auth/protected', authenticateToken, (req: RequestWithUser, res: Response) => {
   res.json({ message: '認証済み', user: req.user });
