@@ -178,6 +178,9 @@ app.get('/api/timetable', authenticateToken, (req: Request, res: Response) => {
         },
       });
 
+      console.log('🔍 Database Query Condition:', JSON.stringify(whereCondition, null, 2)); // クエリ条件をログ出力
+      console.log(`🔍 Found ${episodes.length} episodes.`); // 取得件数をログ出力
+      // console.log('🔍 Episodes Data:', JSON.stringify(episodes, null, 2)); // 必要に応じて取得データ自体もログ出力（データ量が多い場合は注意）
       res.json(episodes);
 
     } catch (err: any) {

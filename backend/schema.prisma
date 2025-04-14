@@ -1,5 +1,3 @@
-// schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,80 +17,76 @@ model User {
 }
 
 model Anime {
-  id            Int           @id @default(autoincrement())
-  title         String
-  syobocal_tid  String
-  userAnimes    UserAnime[]
-  episodes      Episode[]
+  id           Int         @id @default(autoincrement())
+  title        String
+  syobocal_tid String      @unique
+  episodes     Episode[]
+  userAnimes   UserAnime[]
 }
 
 model Channel {
-  id            Int           @id @default(autoincrement())
-  syobocal_cid  String        // ChID
-  name          String        // ChName
-  epg_name      String?       // ChiEPGName
-  url           String?       // ChURL
-  epg_url       String?       // ChEPGURL
-  comment       String?       // ChComment
-  gid           Int?          // ChGID
-  number        Int?          // ChNumber
-  last_update   DateTime?     // LastUpdate
-  area          String?
-  userChannels  UserChannel[]
-  episodes      Episode[]
-  userAnimes    UserAnime[]   @relation("UserAnimeChannel")
+  id           Int           @id @default(autoincrement())
+  syobocal_cid String        @unique
+  name         String
+  epg_name     String?
+  url          String?
+  epg_url      String?
+  comment      String?
+  gid          Int?
+  number       Int?
+  last_update  DateTime?
+  area         String?
+  episodes     Episode[]
+  userAnimes   UserAnime[]   @relation("UserAnimeChannel")
+  userChannels UserChannel[]
 }
 
 model UserAnime {
   id           Int       @id @default(autoincrement())
   user_id      Int
   anime_id     Int
-  channel_id   Int       // どの放送局で視聴しているか
-  status       String    // "watching", "watched", "plan_to_watch"
+  channel_id   Int
+  status       String
   last_watched DateTime?
   memo         String?
+  channel      Channel   @relation("UserAnimeChannel", fields: [channel_id], references: [id])
+  anime        Anime     @relation(fields: [anime_id], references: [id])
+  user         User      @relation(fields: [user_id], references: [id])
 
-  user    User    @relation(fields: [user_id], references: [id])
-  anime   Anime   @relation(fields: [anime_id], references: [id])
-  channel Channel @relation("UserAnimeChannel", fields: [channel_id], references: [id])
-
+  @@unique([user_id, anime_id, channel_id])
   @@index([user_id])
   @@index([anime_id])
   @@index([channel_id])
-  @@unique([user_id, anime_id, channel_id])
 }
 
 model UserChannel {
   id         Int     @id @default(autoincrement())
   user_id    Int
   channel_id Int
-
-  user    User    @relation(fields: [user_id], references: [id])
-  channel Channel @relation(fields: [channel_id], references: [id])
+  channel    Channel @relation(fields: [channel_id], references: [id])
+  user       User    @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([channel_id])
 }
 
-// アニメ各回（エピソード）テーブル
 model Episode {
   id           Int      @id @default(autoincrement())
-  pid          Int      @unique // ProgItemのPID
+  pid          Int      @unique
   anime_id     Int
   channel_id   Int
-  st_time      DateTime // 放送開始日時
-  ed_time      DateTime // 放送終了日時
-  count        Int?     // 話数（Count）
-  sub_title    String?  // サブタイトル
-  prog_comment String?  // コメント
+  st_time      DateTime
+  ed_time      DateTime
+  count        Int?
+  sub_title    String?
+  prog_comment String?
   flag         Int?
   deleted      Boolean?
   warn         Int?
   revision     Int?
   last_update  DateTime
-
-  anime   Anime   @relation(fields: [anime_id], references: [id])
-  channel Channel @relation(fields: [channel_id], references: [id])
+  channel      Channel  @relation(fields: [channel_id], references: [id])
+  anime        Anime    @relation(fields: [anime_id], references: [id])
 
   @@index([anime_id])
   @@index([channel_id])

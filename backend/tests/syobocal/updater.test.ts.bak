@@ -1,0 +1,369 @@
+import { PrismaClient } from '@prisma/client';
+import { SyobocalUpdater } from '../../src/services/syobocal/updater';
+import { SyobocalClient } from '../../src/services/syobocal/client';
+
+jest.mock('@prisma/client', () => ({
+  PrismaClient: jest.fn().mockImplementation(() => ({
+    channel: {
+      upsert: jest.fn().mockResolvedValue({}),
+      findUnique: jest.fn().mockResolvedValue(null)
+    },
+    anime: {
+      upsert: jest.fn().mockResolvedValue({}),
+      findUnique: jest.fn().mockResolvedValue(null)
+    },
+    episode: {
+      upsert: jest.fn().mockResolvedValue({})
+    }
+  }))
+}));
+
+jest.mock('../../src/services/syobocal/client');
+
+describe('SyobocalUpdater', () => {
+  let updater: SyobocalUpdater;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    updater = new SyobocalUpdater();
+
+    // モックの初期化
+    (updater as any).client = {
+      getChannels: jest.fn().mockResolvedValue([]),
+      getTitles: jest.fn().mockResolvedValue([]),
+      getPrograms: jest.fn().mockResolvedValue([])
+    };
+
+    (updater as any).prisma = {
+      channel: {
+        upsert: jest.fn().mockResolvedValue({}),
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
+      anime: {
+        upsert: jest.fn().mockResolvedValue({}),
+        findUnique: jest.fn().mockResolvedValue(null)
+      },
+      episode: {
+        upsert: jest.fn().mockResolvedValue({})
+      }
+    };
+  });
+
+  describe('updateAnimes', () => {
+    it('新規タイトルが正しく登録されること', async () => {
+      const mockTitles = [{
+        TID: ['1000'],
+        Title: ['テストアニメ1'],
+        LastUpdate: ['20250413_000000']
+      }];
+
+      (updater as any).client.getTitles.mockResolvedValue(mockTitles);
+
+      await (updater as any).updateAnimes();
+
+      expect((updater as any).prisma.anime.upsert).toHaveBeenCalledWith({
+        where: { id: 1000 },
+        create: {
+          id: 1000,
+          syobocal_tid: '1000',
+          title: 'テストアニメ1'
+        },
+        update: {
+          title: 'テストアニメ1'
+        }
+      });
+  
+      it('既存タイトルが正しく更新されること', async () => {
+        const existingTitle = {
+          id: 2000,
+          syobocal_tid: '2000',
+          title: '更新前のタイトル'
+        };
+  
+        const mockTitles = [{
+          TID: ['2000'],
+          Title: ['更新後のタイトル'],
+          LastUpdate: ['20250413_000000']
+        }];
+  
+        (updater as any).prisma.anime.findUnique.mockResolvedValue(existingTitle);
+        (updater as any).client.getTitles.mockResolvedValue(mockTitles);
+  
+        await (updater as any).updateAnimes();
+  
+        expect((updater as any).prisma.anime.upsert).toHaveBeenCalledWith({
+          where: { id: 2000 },
+          create: {
+            id: 2000,
+            syobocal_tid: '2000',
+            title: '更新後のタイトル'
+          },
+          update: {
+            title: '更新後のタイトル'
+          }
+        });
+    
+        it('不正なデータの場合はスキップされること', async () => {
+          const mockTitles = [{
+            TID: ['invalid'],
+            Title: ['テストアニメ'],
+            LastUpdate: ['20250413_000000']
+          }];
+    
+          (updater as any).client.getTitles.mockResolvedValue(mockTitles);
+          const consoleSpy = jest.spyOn(console, 'error');
+    
+          await (updater as any).updateAnimes();
+    
+          expect(consoleSpy).toHaveBeenCalled();
+          expect((updater as any).prisma.anime.upsert).not.toHaveBeenCalled();
+    
+          consoleSpy.mockRestore();
+        });
+    
+        it('DBエラー時も処理を継続すること', async () => {
+          const mockTitles = [
+            {
+              TID: ['1000'],
+              Title: ['テストアニメ1'],
+              LastUpdate: ['20250413_000000']
+            },
+            {
+              TID: ['1001'],
+              Title: ['テストアニメ2'],
+              LastUpdate: ['20250413_000000']
+            }
+          ];
+    
+          (updater as any).client.getTitles.mockResolvedValue(mockTitles);
+          (updater as any).prisma.anime.upsert
+            .mockRejectedValueOnce(new Error('DB Error'))
+            .mockResolvedValueOnce({});
+    
+          await (updater as any).updateAnimes();
+    
+          expect((updater as any).prisma.anime.upsert).toHaveBeenCalledTimes(2);
+        });
+      });
+    });
+
+    it('不正なデータの場合はスキップされること', async () => {
+      const mockTitles = [{
+        TID: ['invalid'],
+        Title: ['テストアニメ'],
+        LastUpdate: ['20250413_000000']
+      }];
+
+      (updater as any).client.getTitles.mockResolvedValue(mockTitles);
+      const consoleSpy = jest.spyOn(console, 'error');
+
+      await (updater as any).updateAnimes();
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect((updater as any).prisma.anime.upsert).not.toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('updateAnimes', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      
+      (updater as any).client = {
+        getTitles: jest.fn().mockResolvedValue([])
+      };
+      
+      (updater as any).prisma = {
+        anime: {
+          upsert: jest.fn().mockResolvedValue({}),
+          findUnique: jest.fn().mockResolvedValue(null)
+        }
+      };
+    });
+
+    it('新規タイトルが正しく登録されること', async () => {
+      const mockTitles = [{
+        TID: ['1000'],
+        Title: ['テストアニメ1'],
+        LastUpdate: ['20250413_000000']
+      }];
+
+      (updater as any).client.getTitles.mockResolvedValue(mockTitles);
+      await (updater as any).updateAnimes();
+
+      expect((updater as any).prisma.anime.upsert).toHaveBeenCalledWith({
+        where: { id: 1000 },
+        create: {
+          id: 1000,
+          syobocal_tid: '1000',
+          title: 'テストアニメ1'
+        },
+        update: {
+          title: 'テストアニメ1'
+        }
+      });
+    });
+
+    it('新規タイトルが正しく登録されること', async () => {
+      const mockTitles = [{
+        TID: ['1000'],
+        Title: ['テストアニメ1'],
+        LastUpdate: ['20250413_000000']
+      }];
+
+      (updater as any).client.getTitles = jest.fn().mockResolvedValue(mockTitles);
+
+      await (updater as any).updateAnimes();
+
+      expect((updater as any).prisma.anime.upsert).toHaveBeenCalledWith({
+        where: { id: 1000 },
+        create: {
+          id: 1000,
+          syobocal_tid: '1000',
+          title: 'テストアニメ1'
+        },
+        update: {
+          title: 'テストアニメ1'
+        }
+      });
+    });
+    beforeEach(() => {
+      jest.clearAllMocks();
+      (updater as any).client = {
+        getTitles: jest.fn().mockResolvedValue([])
+      };
+      (updater as any).prisma = {
+        anime: {
+          upsert: jest.fn().mockResolvedValue({}),
+          findUnique: jest.fn().mockResolvedValue(null)
+        }
+      };
+    });
+
+    it('新規タイトルが正しく登録されること', async () => {
+      const mockTitles = [{
+        TID: ['1000'],
+        Title: ['テストアニメ1'],
+        LastUpdate: ['20250413_000000']
+      }];
+
+      (updater as any).client.getTitles.mockResolvedValue(mockTitles);
+      await (updater as any).updateAnimes();
+
+      expect((updater as any).prisma.anime.upsert).toHaveBeenCalledWith({
+        where: { id: 1000 },
+        create: {
+          id: 1000,
+          syobocal_tid: '1000',
+          title: 'テストアニメ1'
+        },
+        update: {
+          title: 'テストアニメ1'
+        }
+      });
+    });
+
+    it('既存タイトルが正しく更新されること', async () => {
+      // TBD
+    });
+
+    it('不正なデータの場合はスキップされること', async () => {
+      const mockTitles = [{
+        TID: ['invalid'], // 数値に変換できない
+        Title: ['テストアニメ'],
+        LastUpdate: ['20250413_000000']
+      }];
+
+      (updater as any).client.getTitles = jest.fn().mockResolvedValue(mockTitles);
+      const consoleSpy = jest.spyOn(console, 'error');
+
+      await (updater as any).updateAnimes();
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect((updater as any).prisma.anime.upsert).not.toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
+    });
+
+    it('DBエラー時も処理を継続すること', async () => {
+      const mockTitles = [
+        {
+          TID: ['1000'],
+          Title: ['テストアニメ1'],
+          LastUpdate: ['20250413_000000']
+        },
+        {
+          TID: ['1001'],
+          Title: ['テストアニメ2'],
+          LastUpdate: ['20250413_000000']
+        }
+      ];
+
+      (updater as any).client.getTitles = jest.fn().mockResolvedValue(mockTitles);
+      (updater as any).prisma.anime.upsert
+        .mockRejectedValueOnce(new Error('DB Error')) // 1つ目でエラー
+        .mockResolvedValueOnce({}); // 2つ目は成功
+
+      await (updater as any).updateAnimes();
+
+      // 2回呼ばれていることを確認（エラーでも継続している）
+      expect((updater as any).prisma.anime.upsert).toHaveBeenCalledTimes(2);
+    });
+
+
+    it('不正なデータ形式の場合はスキップされること', async () => {
+      const mockTitles = [
+        {
+          TID: ['invalid'], // 数値に変換できない
+          Title: ['テストアニメ'],
+          LastUpdate: ['20250413_000000']
+        }
+      ];
+
+      (updater as any).client.getTitles = jest.fn().mockResolvedValue(mockTitles);
+      const consoleSpy = jest.spyOn(console, 'error');
+
+      await (updater as any).updateAnimes();
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect((updater as any).prisma.anime.upsert).not.toHaveBeenCalled();
+    });
+
+    it('DBエラーの場合は処理を継続すること', async () => {
+      const mockTitles = [
+        {
+          TID: ['1000'],
+          Title: ['テストアニメ1'],
+          LastUpdate: ['20250413_000000']
+        },
+        {
+          TID: ['1001'],
+          Title: ['テストアニメ2'],
+          LastUpdate: ['20250413_000000']
+        }
+      ];
+
+      (updater as any).client.getTitles = jest.fn().mockResolvedValue(mockTitles);
+      (updater as any).prisma.anime.upsert.mockRejectedValueOnce(new Error('DB Error'));
+
+      const consoleSpy = jest.spyOn(console, 'error');
+
+      await (updater as any).updateAnimes();
+
+      expect(consoleSpy).toHaveBeenCalled();
+      expect((updater as any).prisma.anime.upsert).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('formatDate', () => {
+    describe('formatDate', () => {
+      it('日付を正しい形式に変換すること', () => {
+        // UTCで2025年4月13日 00:00:00を指定
+        const date = new Date(Date.UTC(2025, 3, 13));
+        const result = updater['formatDate'](date);
+        expect(result).toBe('20250413_000000');
+      });
+    });
+  });
+});
