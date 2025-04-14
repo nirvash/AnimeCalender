@@ -160,17 +160,33 @@ router.get('/api/timetable', authenticateToken, async (req: RequestWithUser, res
         lte: end,
       }
     };
-
+    
+    // ユーザーの選択した放送局を取得
+    const userChannels = await prisma.userChannel.findMany({
+      where: { user_id: userId },
+      select: { channel_id: true }
+    });
+    
+    if (userChannels.length === 0) {
+      res.json([]); // ユーザーが選択した放送局がない場合は空配列を返す
+      return;
+    }
+    
+    // 放送局フィルタを追加
+    whereCondition.channel_id = {
+      in: userChannels.map(uc => uc.channel_id)
+    };
+    
     if (watchingOnly === 'true') {
       const watchingAnimes = await prisma.userAnime.findMany({
         where: { user_id: userId }
       });
-
+    
       if (watchingAnimes.length === 0) {
         res.json([]);
         return;
       }
-
+    
       whereCondition.anime_id = {
         in: watchingAnimes.map(ua => ua.anime_id)
       };
