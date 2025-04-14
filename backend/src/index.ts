@@ -214,7 +214,8 @@ router.get('/api/timetable', authenticateToken, async (req: RequestWithUser, res
       return;
     }
 
-    const { startDate, endDate, watchingOnly } = req.query;
+    const { startDate, endDate, watchingOnly, channels } = req.query;
+    console.log('Received channels parameter:', channels);
 
     if (!startDate || !endDate) {
       res.status(400).json({ message: 'startDateとendDateは必須です' });
@@ -224,8 +225,9 @@ router.get('/api/timetable', authenticateToken, async (req: RequestWithUser, res
     const startDateStr = String(startDate);
     const endDateStr = String(endDate);
 
-    const start = new Date(`${startDateStr}T00:00:00Z`);
-    const end = new Date(`${endDateStr}T23:59:59Z`);
+    // 日本時間として解釈
+    const start = new Date(`${startDateStr}T00:00:00+09:00`);
+    const end = new Date(`${endDateStr}T23:59:59+09:00`);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       res.status(400).json({ message: '日付の形式が正しくありません (YYYY-MM-DD)' });
@@ -239,20 +241,37 @@ router.get('/api/timetable', authenticateToken, async (req: RequestWithUser, res
       }
     };
     
-    // ユーザーの選択した放送局を取得
-    const userChannels = await prisma.userChannel.findMany({
-      where: { user_id: userId },
-      select: { channel_id: true }
-    });
+    // チャンネルフィルタの処理
+    let channelIds: number[] = [];
     
-    if (userChannels.length === 0) {
-      res.json([]); // ユーザーが選択した放送局がない場合は空配列を返す
+    if (channels) {
+      // URLパラメータから指定されたチャンネルIDをsyobocal_cidに基づいて検索
+      const specifiedChannels = await prisma.channel.findMany({
+        where: {
+          syobocal_cid: {
+            in: String(channels).split(',').map(id => id.trim())
+          }
+        },
+        select: { id: true }
+      });
+      channelIds = specifiedChannels.map(ch => ch.id);
+    } else {
+      // ユーザーの選択した放送局を取得（従来の動作）
+      const userChannels = await prisma.userChannel.findMany({
+        where: { user_id: userId },
+        select: { channel_id: true }
+      });
+      channelIds = userChannels.map(uc => uc.channel_id);
+    }
+    
+    if (channelIds.length === 0) {
+      res.json([]); // 選択された放送局がない場合は空配列を返す
       return;
     }
     
     // 放送局フィルタを追加
     whereCondition.channel_id = {
-      in: userChannels.map(uc => uc.channel_id)
+      in: channelIds
     };
     
     if (watchingOnly === 'true') {

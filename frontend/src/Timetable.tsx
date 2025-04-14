@@ -10,6 +10,14 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 // Episodeデータの型定義（APIレスポンスに合わせて調整が必要）
 // backend/schema.prisma や API実装を参考に定義
+// ユーザーの選択した放送局の型定義
+type Channel = {
+  id: number;
+  name: string;
+  syobocal_cid: string;
+  area: string;
+};
+
 type Episode = {
   id: number;
   pid: number;
@@ -28,7 +36,6 @@ type Episode = {
     syobocal_cid: string;
   };
   is_watching?: boolean; // 視聴中フラグ（APIレスポンスに含まれる場合）
-  // 他に必要なプロパティがあれば追加
 };
 
 type TimetableProps = {
@@ -79,9 +86,28 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
     console.log("Token:", token); // トークンをコンソールに出力
 
     try {
-      const response = await fetch(`/api/timetable?startDate=${startDate}&endDate=${endDate}&watchingOnly=${watchingOnly}`, {
+      // ユーザーの選択した放送局を取得
+      const userChannelsResponse = await fetch('/api/user/channels', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!userChannelsResponse.ok) {
+        throw new Error('放送局設定の取得に失敗しました');
+      }
+
+      const userChannels = await userChannelsResponse.json();
+      // syobocal_cidを文字列として送信
+      const channelIds = userChannels
+        .map((ch: Channel) => ch.syobocal_cid?.toString())
+        .filter(Boolean)
+        .join(',');
+
+      // タイムテーブルデータを取得（選択された放送局でフィルタリング）
+      const response = await fetch(`/api/timetable?startDate=${startDate}&endDate=${endDate}&watchingOnly=${watchingOnly}&channels=${channelIds}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         },
       });
 
@@ -152,7 +178,6 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
   // 22:00〜28:00（翌4:00）までの30分単位の時間ラベル
   const timeLabels: string[] = [];
   for (let h = 22; h <= 28; h++) {
-    const hour = h <= 23 ? h : h - 24;
     const displayHour = h.toString().padStart(2, '0');
     timeLabels.push(`${displayHour}:00`);
     timeLabels.push(`${displayHour}:30`);
@@ -197,6 +222,22 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
   return (
     <div className={styles.timetableContainer}>
       <div className={styles.header}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+          <button
+            onClick={fetchTimetableData}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            データ更新
+          </button>
+          {isLoading && <span>更新中...</span>}
+        </div>
         <h3>タイムテーブル <span style={{ fontWeight: 400, fontSize: '1rem' }}>({getDateRangeString()})</span></h3>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <Tooltip title="前の日/週">
@@ -226,8 +267,14 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
             <option value="week">週</option>
           </select>
           <span style={{ fontSize: '0.98rem' }}>
-            {/* フィルタ機能は今後実装予定 */}
-            視聴中のみ（フィルタ機能は今後実装）
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              視聴中のみ
+              <input
+                type="checkbox"
+                checked={watchingOnly}
+                onChange={(e) => setWatchingOnly(e.target.checked)}
+              />
+            </label>
           </span>
         </div>
       </div>
