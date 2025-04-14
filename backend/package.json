@@ -6,7 +6,8 @@
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
     "test": "jest",
     "update-data": "ts-node src/scripts/update_data.ts",
-    "update-channels": "ts-node src/scripts/update_channels.ts"
+    "update-channels": "ts-node src/scripts/update_channels.ts",
+    "update-channel-areas": "ts-node src/scripts/update_channel_areas.ts"
   },
   "keywords": [],
   "author": "",

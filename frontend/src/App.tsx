@@ -5,13 +5,14 @@ import "./App.css";
 import LoginRegister from "./LoginRegister";
 import Timetable from "./Timetable";
 import ChannelSettings from "./ChannelSettings";
+import WatchList from "./WatchList";
 
 type User = { id: number; username: string; email: string };
 
 function App() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'timetable' | 'settings'>('timetable');
+  const [activeTab, setActiveTab] = useState<'timetable' | 'settings' | 'watchlist'>('timetable');
 
   // 初回マウント時にlocalStorageからトークン復元
   useEffect(() => {
@@ -79,13 +80,24 @@ function App() {
         >
           放送局設定
         </button>
+        <button
+          onClick={() => setActiveTab('watchlist')}
+          style={{
+            padding: "12px 24px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === 'watchlist' ? "2px solid #007bff" : "none",
+            color: activeTab === 'watchlist' ? "#007bff" : "#333",
+            cursor: "pointer"
+          }}
+        >
+          視聴リスト
+        </button>
       </nav>
       <main style={{ padding: "24px" }}>
-        {activeTab === 'timetable' ? (
-          <Timetable token={token} />
-        ) : (
-          <ChannelSettings token={token} />
-        )}
+        {activeTab === 'timetable' && <Timetable token={token} />}
+        {activeTab === 'settings' && <ChannelSettings token={token} />}
+        {activeTab === 'watchlist' && <WatchList token={token} />}
       </main>
     </div>
   );

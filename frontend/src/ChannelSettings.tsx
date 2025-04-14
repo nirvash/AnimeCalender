@@ -55,19 +55,33 @@ export default function ChannelSettings({ token }: Props) {
 
   const fetchChannels = async () => {
     try {
-      const response = await fetch('/api/channels', {
+      // チャンネル一覧を取得
+      const channelsResponse = await fetch('/api/channels', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (!response.ok) throw new Error('チャンネル一覧の取得に失敗しました');
-      const data = await response.json();
-      console.log('Channels response:', data);
-      setChannels(data);
-      // 初期状態ではキー局のみを選択状態にする
-      const keyStations = data.filter((ch: Channel) => isKeyStation(ch));
-      setSelectedChannels(keyStations.map((ch: Channel) => ch.id));
+      if (!channelsResponse.ok) throw new Error('チャンネル一覧の取得に失敗しました');
+      const channelsData = await channelsResponse.json();
+      setChannels(channelsData);
+
+      // ユーザーの選択済み放送局を取得
+      const userChannelsResponse = await fetch('/api/user/channels', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (userChannelsResponse.ok) {
+        const userChannelsData = await userChannelsResponse.json();
+        setSelectedChannels(userChannelsData.map((ch: Channel) => ch.id));
+      } else {
+        // ユーザー設定が未保存の場合はキー局を初期選択
+        const keyStations = channelsData.filter((ch: Channel) => isKeyStation(ch));
+        setSelectedChannels(keyStations.map((ch: Channel) => ch.id));
+      }
+
       setIsLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
@@ -141,6 +155,23 @@ return { success: true, channelIds: updatedChannelIds };
     </div>
   );
 
+  // エリアの表示順序を定義
+  const areaOrder = [
+    '関東',
+    '東京',
+    'BS',
+    'CS',
+    '関西',
+    '中部',
+    '北海道',
+    '九州',
+    '神奈川',
+    '千葉',
+    '埼玉',
+    '兵庫',
+    '未分類'
+  ];
+
   const groupedChannels = channels.reduce((groups: { name: string, channels: Channel[] }[], channel) => {
     const groupName = channel.area || '未分類';
     const group = groups.find(g => g.name === groupName);
@@ -155,8 +186,12 @@ return { success: true, channelIds: updatedChannelIds };
     return groups;
   }, []);
 
-  // グループを地域名でソート
-  groupedChannels.sort((a, b) => a.name.localeCompare(b.name));
+  // グループをエリア順でソート
+  groupedChannels.sort((a, b) => {
+    const orderA = areaOrder.indexOf(a.name);
+    const orderB = areaOrder.indexOf(b.name);
+    return orderA - orderB;
+  });
 
   return (
     <div className={styles.container}>
