@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-
+import styles from './Timetable.module.css';
+import IconButton from '@mui/material/IconButton';
+import Checkbox from '@mui/material/Checkbox';
+import Tooltip from '@mui/material/Tooltip';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import TodayIcon from '@mui/icons-material/Today';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 // Episodeデータの型定義（APIレスポンスに合わせて調整が必要）
 // backend/schema.prisma や API実装を参考に定義
 type Episode = {
@@ -19,6 +27,7 @@ type Episode = {
     name: string;
     syobocal_cid: string;
   };
+  is_watching?: boolean; // 視聴中フラグ（APIレスポンスに含まれる場合）
   // 他に必要なプロパティがあれば追加
 };
 
@@ -131,51 +140,211 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
     return `${startDate} 〜 ${endDate}`;
   }
 
+  // グリッド用日付配列生成
+  const { startDate, endDate } = calculateDateRange(viewMode, currentDate);
+  const days = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(new Date(d));
+  }
+
+  // 22:00〜28:00（翌4:00）までの30分単位の時間ラベル
+  const timeLabels: string[] = [];
+  for (let h = 22; h <= 28; h++) {
+    const hour = h <= 23 ? h : h - 24;
+    const displayHour = h.toString().padStart(2, '0');
+    timeLabels.push(`${displayHour}:00`);
+    timeLabels.push(`${displayHour}:30`);
+  }
+
+  // 番組ごとの視聴中状態をローカルで管理（API連携は今後）
+  const [watchingMap, setWatchingMap] = useState<{ [id: number]: boolean }>({});
+
+  useEffect(() => {
+    // エピソード取得時に初期値セット
+    const map: { [id: number]: boolean } = {};
+    episodes.forEach(ep => {
+      map[ep.id] = ep.is_watching ?? false;
+    });
+    setWatchingMap(map);
+  }, [episodes]);
+
+  // 番組を日付・時間ごとにグリッド配置するためのマッピング
+  const getCellPrograms = (date: Date, time: string) => {
+    // 指定日・時刻に開始する番組を抽出
+    return episodes.filter(ep => {
+      const st = new Date(ep.st_time);
+      return (
+        st.getFullYear() === date.getFullYear() &&
+        st.getMonth() === date.getMonth() &&
+        st.getDate() === date.getDate() &&
+        st.getHours() === parseInt(time.split(':')[0], 10) &&
+        (time.endsWith(':30') ? st.getMinutes() >= 30 : st.getMinutes() < 30)
+      );
+    });
+  };
+
+  // 視聴中トグル
+  const handleToggleWatching = (id: number) => {
+    setWatchingMap(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+    // TODO: API連携でサーバーに反映
+  };
+
   return (
-    <div>
-      <h3>タイムテーブル ({getDateRangeString()})</h3>
-      {/* 操作UI */}
-      <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        {/* 日付移動 */}
-        <div>
-          <button onClick={handlePrevDate}>&lt;前</button>
-          <button onClick={handleToday} style={{ margin: '0 0.5rem' }}>今日</button>
-          <button onClick={handleNextDate}>次&gt;</button>
+    <div className={styles.timetableContainer}>
+      <div className={styles.header}>
+        <h3>タイムテーブル <span style={{ fontWeight: 400, fontSize: '1rem' }}>({getDateRangeString()})</span></h3>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <Tooltip title="前の日/週">
+            <span>
+              <IconButton onClick={handlePrevDate} color="primary">
+                <ArrowBackIosNewIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="今日">
+            <span>
+              <IconButton onClick={handleToday} color="primary">
+                <TodayIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="次の日/週">
+            <span>
+              <IconButton onClick={handleNextDate} color="primary">
+                <ArrowForwardIosIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <select value={viewMode} onChange={(e) => setViewMode(e.target.value as 'day' | '3days' | 'week')}>
+            <option value="day">1日</option>
+            <option value="3days">3日</option>
+            <option value="week">週</option>
+          </select>
+          <span style={{ fontSize: '0.98rem' }}>
+            {/* フィルタ機能は今後実装予定 */}
+            視聴中のみ（フィルタ機能は今後実装）
+          </span>
         </div>
-        {/* 表示期間切り替え */}
-        <select value={viewMode} onChange={(e) => setViewMode(e.target.value as 'day' | '3days' | 'week')}>
-          <option value="day">1日</option>
-          <option value="3days">3日</option>
-          <option value="week">週</option>
-        </select>
-        {/* 視聴中のみ切り替え */}
-        <label>
-          <input
-            type="checkbox"
-            checked={watchingOnly}
-            onChange={(e) => setWatchingOnly(e.target.checked)}
-          />
-          視聴中のみ
-        </label>
       </div>
 
-      {/* ローディング・エラー表示 */}
       {isLoading && <p>読み込み中...</p>}
       {error && <p style={{ color: 'red' }}>エラー: {error}</p>}
 
-      {/* 番組リスト表示（仮） */}
       {!isLoading && !error && (
-        <ul>
-          {episodes.length > 0 ? (
-            episodes.map((ep) => (
-              <li key={ep.id}>
-                {new Date(ep.st_time).toLocaleString()} - {ep.anime.title} ({ep.channel.name}) {ep.count ? `第${ep.count}話` : ''} {ep.sub_title || ''}
-              </li>
-            ))
-          ) : (
-            <p>表示する番組がありません。</p>
+        <div
+          className={styles.grid}
+          style={{ '--days': days.length } as React.CSSProperties}
+        >
+          {/* 日付ヘッダー */}
+          <div className={styles.timeAxis} style={{ gridRow: '1', gridColumn: '1' }}></div>
+          {days.map((date, idx) => (
+            <div
+              key={idx}
+              className={styles.dateHeader}
+              style={{
+                gridRow: 1,
+                gridColumn: idx + 2,
+              }}
+            >
+              {date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' })}
+            </div>
+          ))}
+
+          {/* 時間軸 */}
+          {timeLabels.map((label, i) => (
+            <div
+              key={label}
+              className={styles.timeAxis}
+              style={{
+                gridRow: i + 2,
+                gridColumn: 1,
+              }}
+            >
+              {label}
+            </div>
+          ))}
+
+          {/* 番組セル */}
+          {days.map((date, dayIdx) =>
+            timeLabels.map((label, timeIdx) => {
+              // この枠の開始時刻に始まる番組のみを抽出
+              const progs = getCellPrograms(date, label).filter((ep) => {
+                const st = new Date(ep.st_time);
+                // 枠の時刻と完全一致（30分単位）
+                return (
+                  st.getHours() === parseInt(label.split(':')[0], 10) &&
+                  (label.endsWith(':30') ? st.getMinutes() === 30 : st.getMinutes() === 0)
+                );
+              });
+              if (progs.length === 0) return null;
+
+              // 横並びにするためflexラップ
+              return (
+                <div
+                  key={`${date.toISOString()}-${label}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: '4px',
+                    gridRow: timeIdx + 2,
+                    gridColumn: dayIdx + 2,
+                    gridRowEnd: 'span 1',
+                    overflowX: 'auto',
+                  }}
+                >
+                  {progs.map((ep) => {
+                    // セルの高さ計算（30分単位でスパン）
+                    const st = new Date(ep.st_time);
+                    const ed = new Date(ep.ed_time);
+                    const diffMin = Math.max(30, (ed.getTime() - st.getTime()) / 60000);
+                    const rowSpan = Math.ceil(diffMin / 30);
+
+                    // 視聴中判定（ローカル状態）
+                    const isWatching = watchingMap[ep.id] ?? false;
+
+                    return (
+                      <div
+                        key={ep.id}
+                        className={`${styles.programCell} ${isWatching ? styles.watching : ''}`}
+                        style={{
+                          minWidth: 120,
+                          flex: '1 1 120px',
+                          gridRowEnd: `span ${rowSpan}`,
+                        }}
+                      >
+                        <div className={styles.programTitle}>{ep.anime.title}</div>
+                        <div className={styles.programMeta}>
+                          {st.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}〜
+                          {ed.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} / {ep.channel.name}
+                        </div>
+                        <div className={styles.programMeta}>
+                          {ep.count ? `#${ep.count}` : ''} {ep.sub_title || ''}
+                        </div>
+                        <div className={styles.checkbox}>
+                          <Checkbox
+                            checked={isWatching}
+                            icon={<RadioButtonUncheckedIcon />}
+                            checkedIcon={<CheckCircleIcon />}
+                            color="primary"
+                            inputProps={{ 'aria-label': '視聴中' }}
+                            onChange={() => handleToggleWatching(ep.id)}
+                            sx={{ padding: 0, marginRight: 0.5 }}
+                          />
+                          <span style={{ fontSize: '0.92rem' }}>視聴中</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })
           )}
-        </ul>
+        </div>
       )}
     </div>
   );

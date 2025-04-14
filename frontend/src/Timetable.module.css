@@ -1,0 +1,124 @@
+/* Timetable.module.css - モダンなタイムテーブルUI用スタイル */
+
+.timetableContainer {
+  background: #f9fafc; /* パステルホワイト */
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 1.5rem;
+  margin: 2rem auto;
+  max-width: 1200px;
+  min-width: 320px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.2rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 4rem repeat(var(--days, 2), 1fr);
+  grid-template-rows: 2.5rem repeat(48, 1fr); /* 30分×24h */
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: auto;
+  background: #fffbe7; /* パステルイエロー */
+}
+
+.timeAxis {
+  grid-column: 1 / 2;
+  grid-row: 2 / span 48;
+  background: #f3f6fb; /* パステルグレー */
+  color: #7a8a99;
+  font-size: 0.95rem;
+  text-align: right;
+  padding-right: 0.5rem;
+  border-right: 1px solid #e0e0e0;
+}
+
+.dateHeader {
+  grid-row: 1 / 2;
+  background: #cce6ff; /* パステルブルー */
+  color: #3a6ea5;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.programCell {
+  background: #e6f0ff; /* パステルブルー（未視聴） */
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin: 2px;
+  padding: 0.3rem 0.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  transition: box-shadow 0.2s, background 0.2s;
+  cursor: pointer;
+  font-size: 0.98rem;
+  min-height: 24px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.programCell:hover {
+  background: #f3e6ff; /* パステルパープル（未視聴hover） */
+}
+.programCell.watching:hover {
+  background: #baf2d8; /* 視聴中hoverは少し濃いグリーン */
+}
+
+.programCell.watching {
+  background: #d6f5e3; /* パステルグリーン（視聴中） */
+  border-color: #8ee4af;
+}
+
+.programCell.selected {
+  outline: 2px solid #1976d2;
+}
+
+.programTitle {
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 0.1rem;
+}
+
+.programMeta {
+  font-size: 0.92rem;
+  color: #666;
+}
+
+.checkbox {
+  margin-top: 0.2rem;
+  align-self: flex-end;
+}
+
+@media (max-width: 767px) {
+  .timetableContainer {
+    padding: 0.5rem;
+    margin: 0.5rem;
+    max-width: 100vw;
+  }
+  .grid {
+    grid-template-columns: 2.5rem repeat(var(--days, 1), 1fr);
+    font-size: 0.92rem;
+  }
+  .dateHeader {
+    font-size: 0.95rem;
+  }
+  .programCell {
+    font-size: 0.92rem;
+    padding: 0.2rem 0.3rem;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background: #f5f7fa;
+}
+::-webkit-scrollbar-thumb {
+  background: #e0e0e0;
+  border-radius: 4px;
+}
