@@ -2,74 +2,29 @@
 
 ## 2025-04-14: フロントエンド・バックエンドの起動設定
 
-### 1. バックエンドの起動
-1. 依存関係のインストール
-```bash
-cd backend
-npm install
-```
+（前略）
 
-2. SSL証明書の生成（開発環境用）
-```bash
-openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes -subj "/CN=localhost"
-```
+---
 
-3. Prismaの初期設定
-```bash
-npx prisma generate
-npx prisma migrate deploy
-```
+## 2025-04-14: バックエンドのテスト追加・エラーハンドリング強化・デバッグ対応
 
-4. バックエンドサーバーの起動
-```bash
-npm run dev
-```
+### 1. バックエンドのテスト追加
+- SyobocalUpdaterのupdateAnimesに対するユニットテストを追加
+  - 新規タイトル登録
+  - 既存タイトルの更新
+  - 不正なデータ（必須フィールド欠落やTID不正）のエラーハンドリング
+  - Prismaの一意制約違反（syobocal_tid重複）時の処理継続
 
-### 2. フロントエンドの起動
-1. 依存関係のインストール
-```bash
-cd frontend
-npm install
-```
+### 2. エラーハンドリング強化
+- updateAnimesのforループ内でtry-catchを追加し、1件エラーが発生しても他のデータ処理を継続
+- エラー発生時はconsole.errorで内容を出力
 
-2. 環境変数の設定
-- `.env`ファイルを作成し、バックエンドのURLを設定
-```
-VITE_BACKEND_URL=https://localhost:3001
-```
+### 3. デバッグ実行対応
+- .vscode/launch.jsonにJestテスト用のデバッグ設定を追加
+- テストファイルにdebuggerコメントを追加し、VSCodeからブレークポイントでデバッグ可能に
 
-### 3. CORS・プロキシ設定の最適化
-1. バックエンドのCORS設定（backend/src/index.ts）
-```typescript
-app.use(cors()); // すべてのオリジンを許可
-```
+### 4. テスト実行・確認
+- npm testで全テストがパスすることを確認
+- DBエラーや不正データ時もテストが通ることを確認
 
-2. フロントエンドのプロキシ設定（frontend/vite.config.ts）
-```typescript
-server: {
-  proxy: {
-    '/api': {
-      target: 'https://localhost:3001',
-      changeOrigin: true,
-      secure: false
-    },
-  },
-},
-```
-
-### 4. APIリクエストの設定
-1. フロントエンドのAPIリクエスト設定
-- 相対パスを使用してプロキシ経由でアクセス
-- 認証トークンの設定
-- エラーハンドリングの実装
-
-### 5. 動作確認
-- バックエンドサーバー: https://localhost:3001
-- フロントエンド開発サーバー: http://localhost:5173
-- APIリクエストとレスポンスの正常動作を確認
-- 認証機能の動作を確認
-
-### 注意点
-- 開発環境では自己署名証明書を使用
-- プロダクション環境では適切な証明書の設定が必要
-- セキュリティ設定は開発環境用に最適化されており、本番環境では見直しが必要
+---
