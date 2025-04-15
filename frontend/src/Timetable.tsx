@@ -184,7 +184,6 @@ const handleToday = () => {
   const handleToggleWatching = async (id: number) => {
     const newValue = !watchingMap[id];
     try {
-      setIsLoading(true);
       setError(null);
       // POSTリクエストで視聴中状態をサーバーに送信（/api/watch-status）
       const res = await fetch('/api/watch-status', {
@@ -206,8 +205,6 @@ const handleToday = () => {
       setWatchingMap(prev => ({ ...prev, [id]: newValue }));
     } catch (e) {
       setError(e instanceof Error ? e.message : '視聴中状態の更新に失敗しました。');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -260,7 +257,7 @@ const handleToday = () => {
              <option value="week">週</option>
            </select>
            <span style={{ fontSize: '0.98rem' }}>
-             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#222' }}> {/* 文字色を黒系に変更 */}
                視聴中のみ
                <input
                  type="checkbox"
@@ -422,9 +419,26 @@ const handleToday = () => {
                    }
                    columns.push({ ep, col, top, bottom });
                  });
-                 const maxCol = columns.reduce((acc, cur) => Math.max(acc, cur.col), 0);
-                 return columns.map(({ ep, col, top, bottom }) => {
+                 // const maxCol = columns.reduce((acc, cur) => Math.max(acc, cur.col), 0); // 不要になったため削除
+                 return columns.map(({ ep, top, bottom }) => { // 不要な col, index を削除
                    const isWatching = watchingMap[ep.id] ?? false;
+
+                   // --- 幅と左位置の計算ロジック修正 ---
+                   // 現在の番組(ep)と時間帯が重なる他の番組をフィルタリング
+                   const overlappingGroup = columns.filter(c =>
+                     !(bottom <= c.top || top >= c.bottom) // 時間帯が重なるか
+                   ).sort((a, b) => a.col - b.col); // 元のカラム番号順でソート
+
+                   // 重複グループ内での自身のインデックス（これが新しいカラム番号になる）
+                   const overlappingIndex = overlappingGroup.findIndex(item => item.ep.id === ep.id);
+                   // 重複グループの総数（これが分割数になる）
+                   const overlappingCount = overlappingGroup.length;
+
+                   // 幅と左位置を再計算
+                   const calculatedWidth = 100 / overlappingCount;
+                   const calculatedLeft = (overlappingIndex / overlappingCount) * 100;
+                   // --- 修正ここまで ---
+
                    return (
                      <div
                        key={ep.id}
@@ -433,11 +447,12 @@ const handleToday = () => {
                          position: 'absolute',
                          top: `${(top / 360) * 100}%`,
                          height: `${((bottom - top) / 360) * 100}%`,
-                         left: `${(col / (maxCol + 1)) * 100}%`,
-                         width: `${100 / (maxCol + 1)}%`,
-                         minWidth: 120,
+                         // left と width を計算結果で上書き
+                         left: `${calculatedLeft}%`,
+                         width: `${calculatedWidth}%`,
+                         minWidth: 120, // 最小幅は維持
                          boxSizing: 'border-box',
-                         zIndex: 2 + col,
+                         zIndex: 2 + overlappingIndex, // zIndexも重複グループ内でのカラム番号基準に
                          padding: '0.3rem 0.5rem',
                          overflow: 'hidden',
                        }}

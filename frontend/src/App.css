@@ -1,7 +1,8 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+  max-width: 100%; /* 最大幅を画面幅に */
+  width: 100%; /* 幅を画面幅に */
+  margin: 0; /* 左右のマージンを削除 */
+  padding: 2rem 0; /* 上下は維持、左右は0 */
   text-align: center;
 }
 
@@ -123,4 +124,25 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Tab Button Styles */
+.tabButton {
+  color: #333; /* Default color for light mode */
+  font-weight: 500; /* 少し太字に */
+  transition: color 0.2s;
+}
+
+.activeTabButton {
+  color: #007bff; /* Active color for light mode */
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .tabButton {
+    color: #bbb; /* Lighter color for dark mode (inactive) */
+  }
+  .activeTabButton {
+    color: #64b5f6; /* Lighter blue for dark mode (active) */
+  }
 }

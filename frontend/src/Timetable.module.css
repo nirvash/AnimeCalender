@@ -4,9 +4,9 @@
   background: #f9fafc; /* パステルホワイト */
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  padding: 1.5rem;
-  margin: 2rem auto;
-  max-width: 1200px;
+  padding: 1.5rem 1rem; /* 上下は維持、左右は0 */
+  margin: 2rem 0;  /* 上下は維持、左右は0 */
+  max-width: 100%; /* 最大幅を画面幅に */
   min-width: 320px;
 }
 
@@ -15,6 +15,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.2rem;
+  padding-left: 0; /* 左パディングを明示的に0に */
+  padding-right: 0; /* 右パディングを明示的に0に */
 }
 
 .grid {

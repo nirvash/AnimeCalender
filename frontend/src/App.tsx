@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react"; // useCallback を追加
 
 console.log('Debug: VITE_BACKEND_URL =', import.meta.env.VITE_BACKEND_URL);
 import "./App.css";
@@ -13,6 +13,7 @@ function App() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'timetable' | 'settings' | 'watchlist'>('timetable');
+  const [channelSettingsVersion, setChannelSettingsVersion] = useState<number>(0); // 放送局設定のバージョン
 
   // 初回マウント時にlocalStorageからトークン復元
   useEffect(() => {
@@ -38,6 +39,12 @@ function App() {
     localStorage.removeItem("user");
   };
 
+  // 放送局設定が保存されたときに呼び出されるコールバック
+  const handleSettingsSaved = useCallback(() => {
+    setChannelSettingsVersion(prevVersion => prevVersion + 1);
+    console.log('Channel settings saved, version incremented:', channelSettingsVersion + 1);
+  });
+
   if (!token || !user) {
     return <LoginRegister onAuthSuccess={handleAuthSuccess} />;
   }
@@ -54,27 +61,27 @@ function App() {
         </div>
       </header>
       <nav style={{ borderBottom: "1px solid #ddd", padding: "0 24px" }}>
-        <button 
-          onClick={() => setActiveTab('timetable')} 
-          style={{ 
+        <button
+          onClick={() => setActiveTab('timetable')}
+          className={`tabButton ${activeTab === 'timetable' ? 'activeTabButton' : ''}`} // クラスを追加
+          style={{ // color 以外を維持
             padding: "12px 24px",
             border: "none",
             background: "none",
             borderBottom: activeTab === 'timetable' ? "2px solid #007bff" : "none",
-            color: activeTab === 'timetable' ? "#007bff" : "#333",
             cursor: "pointer"
           }}
         >
           番組表
         </button>
-        <button 
-          onClick={() => setActiveTab('settings')} 
-          style={{ 
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`tabButton ${activeTab === 'settings' ? 'activeTabButton' : ''}`} // クラスを追加
+          style={{ // color 以外を維持
             padding: "12px 24px",
             border: "none",
             background: "none",
             borderBottom: activeTab === 'settings' ? "2px solid #007bff" : "none",
-            color: activeTab === 'settings' ? "#007bff" : "#333",
             cursor: "pointer"
           }}
         >
@@ -82,12 +89,12 @@ function App() {
         </button>
         <button
           onClick={() => setActiveTab('watchlist')}
-          style={{
+          className={`tabButton ${activeTab === 'watchlist' ? 'activeTabButton' : ''}`} // クラスを追加
+          style={{ // color 以外を維持
             padding: "12px 24px",
             border: "none",
             background: "none",
             borderBottom: activeTab === 'watchlist' ? "2px solid #007bff" : "none",
-            color: activeTab === 'watchlist' ? "#007bff" : "#333",
             cursor: "pointer"
           }}
         >
@@ -95,8 +102,8 @@ function App() {
         </button>
       </nav>
       <main style={{ padding: "24px" }}>
-        {activeTab === 'timetable' && <Timetable token={token} />}
-        {activeTab === 'settings' && <ChannelSettings token={token} />}
+        {activeTab === 'timetable' && <Timetable token={token} channelSettingsVersion={channelSettingsVersion} />} {/* channelSettingsVersion を渡す */}
+        {activeTab === 'settings' && <ChannelSettings token={token} onSettingsSaved={handleSettingsSaved} />} {/* onSettingsSaved を渡す */}
         {activeTab === 'watchlist' && <WatchList token={token} />}
       </main>
     </div>
