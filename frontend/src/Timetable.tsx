@@ -8,7 +8,9 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import TodayIcon from '@mui/icons-material/Today';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import { getTimetableTodayDate, addTimetableDays } from './timetableDateUtils';
+import { getTodayDate28h, addDays28h } from './timetableDateUtils';
+import type { Date28h } from './timetableDateUtils';
+
 // Episodeデータの型定義（APIレスポンスに合わせて調整が必要）
 // backend/schema.prisma や API実装を参考に定義
 // ユーザーの選択した放送局の型定義
@@ -49,45 +51,40 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
   const [watchingOnly, setWatchingOnly] = useState<boolean>(false); // 視聴中のみ表示フラグ
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentDate, setCurrentDate] = useState<Date>(new Date()); // 表示基準日
+  // 画面の「基準日」: 28時制で補正された日付のみを保持
+// currentBaseDate28hは常に0:00 JSTのDate（午前4時までは前日扱い）
+const [currentBaseDate28h, setCurrentBaseDate28h] = useState<Date28h>(getTodayDate28h(new Date()));
 
-  // viewModeとcurrentDateに基づいてstartDateとendDateを計算する関数
-  const calculateDateRange = (mode: 'day' | '3days' | 'week', baseDate: Date): { startDate: string, endDate: string } => {
-    // 28時制で考えると、表示開始日の22:00から翌日の4:00（28:00）までが1日分
-    const start = new Date(baseDate);
-    start.setHours(0, 0, 0, 0);
-    // 前日の22:00から表示開始
-    start.setDate(start.getDate() - 1);
-    start.setHours(22, 0, 0, 0);
-
-    const end = new Date(start);
-    switch (mode) {
-      case 'day':
-        // 当日の28:00（翌日の4:00）まで
-        end.setDate(start.getDate() + 1);
-        end.setHours(4, 0, 0, 0);
-        break;
-      case '3days':
-        end.setDate(start.getDate() + 3);
-        end.setHours(4, 0, 0, 0);
-        break;
-      case 'week':
-        end.setDate(start.getDate() + 7);
-        end.setHours(4, 0, 0, 0);
-        break;
-    }
-
-    // YYYY-MM-DD形式にフォーマット
-    const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-    return { startDate: formatDate(start), endDate: formatDate(end) };
-  };
+  // viewModeとcurrentBaseDate28hに基づいてstartDateとendDateを計算する関数
+  // 28時制の基準日（0:00 JST）から、1日分は0:00〜翌4:00とする
+// 28時制での範囲計算
+const calculateDateRange28h = (mode: 'day' | '3days' | 'week', baseDate28h: Date): { startDate: string, endDate: string } => {
+  const start = new Date(baseDate28h); // 0:00 JST
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  switch (mode) {
+    case 'day':
+      end.setDate(start.getDate() + 1);
+      end.setHours(4, 0, 0, 0); // 翌4:00
+      break;
+    case '3days':
+      end.setDate(start.getDate() + 3);
+      end.setHours(4, 0, 0, 0);
+      break;
+    case 'week':
+      end.setDate(start.getDate() + 7);
+      end.setHours(4, 0, 0, 0);
+      break;
+  }
+  const formatDate28h = (date: Date) => date.toISOString().split('T')[0];
+  return { startDate: formatDate28h(start), endDate: formatDate28h(end) };
+};
 
   // APIからタイムテーブルデータを取得する関数
   const fetchTimetableData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const { startDate, endDate } = calculateDateRange(viewMode, currentDate);
+    const { startDate, endDate } = calculateDateRange28h(viewMode, currentBaseDate28h);
 
     console.log("Token:", token); // トークンをコンソールに出力
 
@@ -140,37 +137,37 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [viewMode, watchingOnly, currentDate, token]);
+  }, [viewMode, watchingOnly, currentBaseDate28h, token]);
 
-  // viewMode, watchingOnly, currentDate が変更されたらデータを再取得
+  // viewMode, watchingOnly, currentBaseDate28h が変更されたらデータを再取得
   useEffect(() => {
     fetchTimetableData();
   }, [fetchTimetableData]);
 
   // 日付移動ハンドラ
-  const handlePrevDate = () => {
-    const newDate = new Date(currentDate);
-    const daysToSubtract = viewMode === 'week' ? 7 : (viewMode === '3days' ? 3 : 1);
-    newDate.setDate(currentDate.getDate() - daysToSubtract);
-    setCurrentDate(newDate);
-  };
+  // 前日・前期間へ移動（28時制基準）
+const handlePrevDate = () => {
+  const daysToSubtract = viewMode === 'week' ? 7 : (viewMode === '3days' ? 3 : 1);
+  setCurrentBaseDate28h(addDays28h(currentBaseDate28h, -daysToSubtract));
+};
 
-  const handleNextDate = () => {
-    const newDate = new Date(currentDate);
-    const daysToAdd = viewMode === 'week' ? 7 : (viewMode === '3days' ? 3 : 1);
-    newDate.setDate(currentDate.getDate() + daysToAdd);
-    setCurrentDate(newDate);
-  };
+  // 翌日・次期間へ移動（28時制基準）
+const handleNextDate = () => {
+  const daysToAdd = viewMode === 'week' ? 7 : (viewMode === '3days' ? 3 : 1);
+  setCurrentBaseDate28h(addDays28h(currentBaseDate28h, daysToAdd));
+};
 
-  const handleToday = () => {
-    const today = getTimetableTodayDate(new Date());
-    console.log('[handleToday] today:', today, today.toISOString(), today.toLocaleString('ja-JP'));
-    setCurrentDate(today);
-  }
+  // 「今日」ボタン（28時制基準）
+const handleToday = () => {
+  const now = new Date();
+  const today28h = getTodayDate28h(now);
+  console.log('[handleToday] now:', now, '→ today28h:', today28h, today28h.toISOString());
+  setCurrentBaseDate28h(today28h);
+};
 
   // 表示期間の文字列生成
   const getDateRangeString = () => {
-    const { startDate, endDate } = calculateDateRange(viewMode, currentDate);
+    const { startDate, endDate } = calculateDateRange28h(viewMode, currentBaseDate28h);
     if (startDate === endDate) {
       return startDate;
     }
@@ -184,7 +181,9 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
   if (viewMode === 'week') numDays = 7;
   const days: Date[] = [];
   for (let i = 0; i < numDays; i++) {
-    days.push(addTimetableDays(currentDate, i));
+    const d = addDays28h(currentBaseDate28h, i);
+    days.push(d);
+    console.log(`[days配列生成] i=${i}, base=${currentBaseDate28h.toISOString()} → day:`, d, d.toISOString());
   }
   console.log('28h days:', days.map(d => d.toLocaleDateString('ja-JP')));
 

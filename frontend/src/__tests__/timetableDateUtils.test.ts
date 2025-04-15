@@ -1,6 +1,6 @@
-import { getTimetableTodayDate, addTimetableDays, isSameTimetableDay } from '../timetableDateUtils';
+import { getTodayDate28h } from '../timetableDateUtils';
 
-describe('getTimetableTodayDate', () => {
+describe('getTodayDate28h', () => {
   // JST基準
   const JST_OFFSET = 9 * 60 * 60 * 1000;
 
@@ -11,25 +11,25 @@ describe('getTimetableTodayDate', () => {
 
   it('JST 2025-04-15 03:59:59 → 2025-04-14', () => {
     const base = new Date('2025-04-15T03:59:59+09:00'); // JST=2025-04-15 03:59:59
-    const result = getTimetableTodayDate(base);
+    const result = getTodayDate28h(base);
     expect(getJSTDate(result)).toBe(14);
   });
 
   it('JST 2025-04-15 04:00:00 → 2025-04-15', () => {
     const base = new Date('2025-04-15T04:00:00+09:00'); // JST=2025-04-15 04:00:00
-    const result = getTimetableTodayDate(base);
+    const result = getTodayDate28h(base);
     expect(getJSTDate(result)).toBe(15);
   });
 
   it('JST 2025-04-15 15:00:00 → 2025-04-15', () => {
     const base = new Date('2025-04-15T15:00:00+09:00'); // JST=2025-04-15 15:00:00
-    const result = getTimetableTodayDate(base);
+    const result = getTodayDate28h(base);
     expect(getJSTDate(result)).toBe(15);
   });
 
   it('JST 2025-04-15 00:00:00 → 2025-04-14', () => {
     const base = new Date('2025-04-15T00:00:00+09:00'); // JST=2025-04-15 00:00:00
-    const result = getTimetableTodayDate(base);
+    const result = getTodayDate28h(base);
     expect(getJSTDate(result)).toBe(14);
   });
 });
