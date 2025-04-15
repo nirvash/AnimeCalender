@@ -9,8 +9,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.setPrismaClient = setPrismaClient;
+exports.updateAreas = updateAreas;
 const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+let prisma = new client_1.PrismaClient();
+// テスト用にPrismaClientを置き換えられるようにする
+function setPrismaClient(client) {
+    prisma = client;
+}
 const areaUpdates = [
     // NHK
     { namePattern: 'NHK総合', area: '関東', exclude: ['大阪', '札幌', '名古屋', '福岡'] },
@@ -59,30 +65,35 @@ function updateAreas() {
             console.log('放送局のエリア情報更新を開始');
             let updatedCount = 0;
             for (const update of areaUpdates) {
-                const channels = yield prisma.channel.findMany({
-                    where: {
-                        name: {
-                            contains: update.namePattern
-                        },
-                        AND: update.exclude ? {
-                            name: {
-                                notIn: update.exclude.map(ex => `${update.namePattern}・${ex}`)
-                            }
-                        } : undefined
+                // チャンネルの検索条件を作成
+                const where = {
+                    name: {
+                        startsWith: update.namePattern
                     }
+                };
+                // 除外パターンがある場合は適用
+                if (update.exclude) {
+                    where.NOT = update.exclude.map(ex => ({ name: `${update.namePattern}・${ex}` }));
+                }
+                const channels = yield prisma.channel.findMany({
+                    where,
+                    select: { id: true, name: true }
                 });
-                for (const channel of channels) {
-                    yield prisma.channel.update({
-                        where: { id: channel.id },
-                        data: { area: update.area }
-                    });
-                    updatedCount++;
+                // 見つかったチャンネルのエリアを更新
+                if (channels && channels.length > 0) {
+                    for (const channel of channels) {
+                        yield prisma.channel.update({
+                            where: { id: channel.id },
+                            data: { area: update.area }
+                        });
+                        updatedCount++;
+                    }
                 }
             }
             console.log(`エリア情報を更新した放送局数: ${updatedCount}`);
             // 残りの未設定チャンネル数を表示
             const noAreaCount = yield prisma.channel.count({
-                where: { area: null }
+                where: { OR: [{ area: null }, { area: '' }] }
             });
             if (noAreaCount > 0) {
                 console.log(`注意: エリア情報が未設定の放送局が ${noAreaCount} 件あります`);
@@ -97,7 +108,3 @@ function updateAreas() {
         }
     });
 }
-updateAreas().catch(e => {
-    console.error(e);
-    process.exit(1);
-});

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Timetable.module.css';
 import IconButton from '@mui/material/IconButton';
 import Checkbox from '@mui/material/Checkbox';
@@ -76,9 +76,8 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
     return { startDate: formatDate(start), endDate: formatDate(end) };
   };
 
-
   // APIからタイムテーブルデータを取得する関数
-  const fetchTimetableData = async () => {
+  const fetchTimetableData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     const { startDate, endDate } = calculateDateRange(viewMode, currentDate);
@@ -131,12 +130,12 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [viewMode, watchingOnly, currentDate, token]);
 
   // viewMode, watchingOnly, currentDate が変更されたらデータを再取得
   useEffect(() => {
     fetchTimetableData();
-  }, [viewMode, watchingOnly, currentDate, token]); // tokenも依存配列に追加
+  }, [fetchTimetableData]);
 
   // 日付移動ハンドラ
   const handlePrevDate = () => {
@@ -211,12 +210,34 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
   };
 
   // 視聴中トグル
-  const handleToggleWatching = (id: number) => {
-    setWatchingMap(prev => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-    // TODO: API連携でサーバーに反映
+  const handleToggleWatching = async (id: number) => {
+    const newValue = !watchingMap[id];
+    try {
+      setIsLoading(true);
+      setError(null);
+      // PATCHリクエストで視聴中状態をサーバーに送信
+      const res = await fetch(`/api/watchlist/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_watching: newValue })
+      });
+      if (!res.ok) {
+        let errorMsg = `Error: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorMsg);
+      }
+      setWatchingMap(prev => ({ ...prev, [id]: newValue }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '視聴中状態の更新に失敗しました。');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -382,7 +403,7 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
                             onChange={() => handleToggleWatching(ep.id)}
                             sx={{ padding: 0, marginRight: 0.5 }}
                           />
-                          <span style={{ fontSize: '0.92rem' }}>視聴中</span>
+                          <span style={{ fontSize: '0.92rem', color: '#222' }}>視聴中</span>
                         </div>
                       </div>
                     );

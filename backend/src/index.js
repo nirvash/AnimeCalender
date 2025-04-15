@@ -23,16 +23,22 @@ const fs_1 = __importDefault(require("fs"));
 const prisma = new client_1.PrismaClient();
 const router = express_1.default.Router();
 const app = (0, express_1.default)();
+console.log("Initializing application...");
 const httpsOptions = {
     key: fs_1.default.readFileSync('server.key'),
     cert: fs_1.default.readFileSync('server.crt'),
 };
+console.log("HTTPS options loaded.");
 const PORT = parseInt(process.env.PORT || '3001', 10);
+console.log(`PORT set to ${PORT}`);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key';
+console.log("JWT secret initialized.");
 // CORS設定をより明示的に指定
 const allowedOrigin = 'https://bookish-space-capybara-pgr4p9qwvvf9xp5-5173.app.github.dev';
 app.use((0, cors_1.default)()); // すべてのオリジンを許可
+console.log("CORS enabled.");
 app.use(body_parser_1.default.json());
+console.log("Body parser enabled.");
 // JWT認証ミドルウェア
 const authenticateToken = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const authHeader = req.headers['authorization'];
@@ -368,147 +374,151 @@ router.get('/api/channels', authenticateToken, (req, res) => __awaiter(void 0, v
 }));
 // ユーザーの選択済み放送局一覧取得API
 router.get('/api/user/channels', authenticateToken, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    // 視聴状態更新API
-    router.post('/api/watch-status', authenticateToken, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
-        try {
-            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
-            const { episodeId, watched } = req.body;
-            if (!userId || !episodeId) {
-                res.status(400).json({ message: '必要なパラメータが不足しています' });
-                return;
-            }
-            // 該当エピソードのアニメIDとチャンネルIDを取得
-            const episode = yield prisma.episode.findUnique({
-                where: { id: episodeId },
-                select: { anime_id: true, channel_id: true }
-            });
-            if (!episode) {
-                res.status(404).json({ message: 'エピソードが見つかりません' });
-                return;
-            }
-            // UserAnimeレコードを更新または作成
-            yield prisma.userAnime.upsert({
-                where: {
-                    user_id_anime_id_channel_id: {
-                        user_id: userId,
-                        anime_id: episode.anime_id,
-                        channel_id: episode.channel_id
-                    }
-                },
-                update: {
-                    last_watched: watched ? new Date() : null,
-                    status: watched ? 'WATCHED' : 'PLANNED'
-                },
-                create: {
+    var _a;
+    try {
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        if (!userId) {
+            res.status(401).send();
+            return;
+        }
+        const userChannels = yield prisma.userChannel.findMany({
+            where: { user_id: userId },
+            include: { channel: { select: { id: true, name: true, syobocal_cid: true, area: true } } }
+        });
+        res.json(userChannels.map(uc => uc.channel));
+    }
+    catch (err) {
+        console.error('Error fetching user channels:', err);
+        res.status(500).json({ message: 'Internal server error', error: err.message });
+    }
+}));
+// 視聴状態更新API
+router.post('/api/watch-status', authenticateToken, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        const { episodeId, watched } = req.body;
+        if (!userId || !episodeId) {
+            res.status(400).json({ message: '必要なパラメータが不足しています' });
+            return;
+        }
+        const episode = yield prisma.episode.findUnique({
+            where: { id: episodeId },
+            select: { anime_id: true, channel_id: true }
+        });
+        if (!episode) {
+            res.status(404).json({ message: 'エピソードが見つかりません' });
+            return;
+        }
+        yield prisma.userAnime.upsert({
+            where: {
+                user_id_anime_id_channel_id: {
                     user_id: userId,
                     anime_id: episode.anime_id,
-                    channel_id: episode.channel_id,
-                    status: watched ? 'WATCHED' : 'PLANNED',
-                    last_watched: watched ? new Date() : null
+                    channel_id: episode.channel_id
                 }
-            });
-            res.json({ success: true });
-        }
-        catch (error) {
-            console.error('視聴状態更新エラー:', error);
-            res.status(500).json({ message: '視聴状態の更新に失敗しました' });
-        }
-    }));
-    router.get('/api/user/channels', authenticateToken, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
-        try {
-            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
-            if (!userId) {
-                res.status(401).send();
-                return;
+            },
+            update: {
+                last_watched: watched ? new Date() : null,
+                status: watched ? 'WATCHED' : 'PLANNED'
+            },
+            create: {
+                user_id: userId,
+                anime_id: episode.anime_id,
+                channel_id: episode.channel_id,
+                status: watched ? 'WATCHED' : 'PLANNED',
+                last_watched: watched ? new Date() : null
             }
-            console.log('Fetching channels for user:', userId);
-            const userChannels = yield prisma.userChannel.findMany({
+        });
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('視聴状態更新エラー:', error);
+        res.status(500).json({ message: '視聴状態の更新に失敗しました' });
+    }
+}));
+// ユーザーの選択放送局保存API
+router.post('/api/user/channels', authenticateToken, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        if (!userId) {
+            res.status(401).send();
+            return;
+        }
+        const { channelIds } = req.body;
+        console.log('Updating channels for user:', userId);
+        console.log('Requested channel IDs:', channelIds);
+        if (!Array.isArray(channelIds)) {
+            res.status(400).json({ message: 'channelIdsは配列で指定してください' });
+            return;
+        }
+        const existingChannels = yield prisma.channel.findMany({
+            where: {
+                id: {
+                    in: channelIds
+                }
+            }
+        });
+        const validChannelIds = existingChannels.map(ch => ch.id);
+        const invalidChannelIds = channelIds.filter(id => !validChannelIds.includes(id));
+        if (invalidChannelIds.length > 0) {
+            res.status(400).json({
+                message: '無効なチャンネルIDが含まれています',
+                invalidChannelIds
+            });
+            return;
+        }
+        const result = yield prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            yield tx.userChannel.deleteMany({
+                where: { user_id: userId }
+            });
+            if (validChannelIds.length > 0) {
+                yield tx.userChannel.createMany({
+                    data: validChannelIds.map(channelId => ({
+                        user_id: userId,
+                        channel_id: channelId
+                    }))
+                });
+            }
+            return yield tx.userChannel.findMany({
                 where: { user_id: userId },
-                include: { channel: { select: { id: true, name: true, syobocal_cid: true, area: true } } }
-            });
-            res.json(userChannels.map(uc => uc.channel));
-        }
-        catch (err) {
-            console.error('Error fetching user channels:', err);
-            res.status(500).json({ message: 'Internal server error', error: err.message });
-        }
-    }));
-    // ユーザーの選択放送局保存API
-    router.post('/api/user/channels', authenticateToken, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
-        try {
-            const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
-            if (!userId) {
-                res.status(401).send();
-                return;
-            }
-            const { channelIds } = req.body;
-            console.log('Updating channels for user:', userId);
-            console.log('Requested channel IDs:', channelIds);
-            if (!Array.isArray(channelIds)) {
-                res.status(400).json({ message: 'channelIdsは配列で指定してください' });
-                return;
-            }
-            const existingChannels = yield prisma.channel.findMany({
-                where: {
-                    id: {
-                        in: channelIds
-                    }
-                }
-            });
-            const validChannelIds = existingChannels.map(ch => ch.id);
-            const invalidChannelIds = channelIds.filter(id => !validChannelIds.includes(id));
-            if (invalidChannelIds.length > 0) {
-                res.status(400).json({
-                    message: '無効なチャンネルIDが含まれています',
-                    invalidChannelIds
-                });
-                return;
-            }
-            const result = yield prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-                yield tx.userChannel.deleteMany({
-                    where: { user_id: userId }
-                });
-                if (validChannelIds.length > 0) {
-                    yield tx.userChannel.createMany({
-                        data: validChannelIds.map(channelId => ({
-                            user_id: userId,
-                            channel_id: channelId
-                        }))
-                    });
-                }
-                return yield tx.userChannel.findMany({
-                    where: { user_id: userId },
-                    include: {
-                        channel: {
-                            select: {
-                                id: true,
-                                name: true,
-                                syobocal_cid: true,
-                                area: true
-                            }
+                include: {
+                    channel: {
+                        select: {
+                            id: true,
+                            name: true,
+                            syobocal_cid: true,
+                            area: true
                         }
                     }
-                });
-            }));
-            res.json({
-                message: 'ユーザーの放送局設定を更新しました',
-                channels: result
+                }
             });
-        }
-        catch (err) {
-            console.error('Error in /api/user/channels:', err);
-            res.status(500).json({
-                message: 'Internal server error',
-                error: err instanceof Error ? err.message : 'Unknown error'
-            });
-        }
-    }));
-    app.use(router);
-    console.log(`Using PORT: ${PORT}`);
-    https_1.default.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
-        console.log(`Backend API server running securely on port ${PORT}`);
-    });
+        }));
+        res.json({
+            message: 'ユーザーの放送局設定を更新しました',
+            channels: result
+        });
+    }
+    catch (err) {
+        console.error('Error in /api/user/channels:', err);
+        res.status(500).json({
+            message: 'Internal server error',
+            error: err instanceof Error ? err.message : 'Unknown error'
+        });
+    }
 }));
+console.log("Router middleware before applied.");
+try {
+    app.use(router);
+    console.log("Router middleware applied.");
+}
+catch (error) {
+    console.error("Error applying router middleware:", error);
+}
+console.log("Router middleware applied.");
+console.log(`Using PORT: ${PORT}`);
+console.log("Starting HTTPS server...");
+https_1.default.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend API server running securely on port ${PORT}`);
+});

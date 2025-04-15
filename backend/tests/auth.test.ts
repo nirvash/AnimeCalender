@@ -73,7 +73,9 @@ app.get('/api/auth/protected', authenticateToken, (req: Request, res: Response) 
 });
 
 beforeAll(async () => {
-  // テスト用DBをクリーンアップ
+  // テスト用DBをクリーンアップ（外部キー制約を考慮した順序）
+  await prisma.userAnime.deleteMany();
+  await prisma.userChannel.deleteMany();
   await prisma.user.deleteMany();
 });
 

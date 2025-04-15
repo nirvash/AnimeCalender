@@ -55,7 +55,7 @@ describe('updateAreas', () => {
 
     // 未設定チャンネルの確認が行われたことを確認
     expect(mockPrismaClient.channel.count).toHaveBeenCalledWith({
-      where: { area: null }
+      where: { OR: [{ area: null }, { area: '' }] }
     });
   });
 
