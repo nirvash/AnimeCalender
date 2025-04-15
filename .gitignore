@@ -45,3 +45,7 @@ prisma/migrations/
 
 # その他
 .next/
+
+# 開発用証明書（セキュリティ対策のためリポジトリ管理しない）
+backend/server.crt
+backend/server.key
