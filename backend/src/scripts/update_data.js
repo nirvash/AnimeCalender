@@ -25,3 +25,4 @@ runUpdate()
     console.error('データ更新スクリプトの実行中にエラーが発生しました:', error);
     process.exit(1);
 });
+//# sourceMappingURL=update_data.js.map

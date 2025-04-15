@@ -70,3 +70,4 @@ function updateAreas() {
 if (require.main === module) {
     updateAreas();
 }
+//# sourceMappingURL=update_channel_areas.js.map

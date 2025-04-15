@@ -200,3 +200,4 @@ describe('SyobocalClient', () => {
         }));
     });
 });
+//# sourceMappingURL=client.test.js.map

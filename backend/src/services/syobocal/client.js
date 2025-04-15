@@ -125,3 +125,4 @@ class SyobocalClient {
     }
 }
 exports.SyobocalClient = SyobocalClient;
+//# sourceMappingURL=client.js.map

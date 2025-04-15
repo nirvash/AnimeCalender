@@ -163,3 +163,4 @@ describe('SyobocalUpdater', () => {
         });
     });
 });
+//# sourceMappingURL=updater.test.js.map

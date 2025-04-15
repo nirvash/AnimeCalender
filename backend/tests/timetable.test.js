@@ -228,3 +228,4 @@ describe('Timetable API', () => {
         }));
     });
 });
+//# sourceMappingURL=timetable.test.js.map

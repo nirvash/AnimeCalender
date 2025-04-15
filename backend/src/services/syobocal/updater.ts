@@ -179,7 +179,7 @@ export class SyobocalUpdater {
             title: title.Title[0]
           }
         });
-        registeredAnimeIds.set(title.TID[0], upserted.id);
+        registeredAnimeIds.set(String(title.TID[0]), upserted.id);
       } catch (error) {
         console.error(`Failed to update anime ${title.TID[0]}:`, error);
       }
@@ -198,14 +198,14 @@ export class SyobocalUpdater {
 
       try {
         // アニメが登録済みか確認
-        const animeIdFromMap = registeredAnimeIds.get(prog.TID[0]);
+        const animeIdFromMap = registeredAnimeIds.get(String(prog.TID[0]));
         if (!animeIdFromMap) {
           console.warn(`⚠️ Skipping program ${pid}: anime ${prog.TID[0]} was not registered successfully`);
           continue;
         }
 
         // チャンネルの存在確認
-        const channel = await this.prisma.channel.findUnique({ where: { id: channelId } });
+        const channel = await this.prisma.channel.findUnique({ where: { syobocal_cid: String(channelId) } });
         if (!channel) {
           console.warn(`⚠️ Skipping program ${pid} due to missing channel:`, {
             anime_id: animeId,
@@ -220,7 +220,7 @@ export class SyobocalUpdater {
           create: {
             pid,
             anime: { connect: { id: animeIdFromMap } },
-            channel: { connect: { id: channelId } },
+            channel: { connect: { id: channel.id } },
             st_time: new Date(prog.StTime[0].replace(/_/g, ' ')),
             ed_time: new Date(prog.EdTime[0].replace(/_/g, ' ')),
             count: prog.Count[0] ? parseInt(prog.Count[0]) : null,
@@ -234,7 +234,7 @@ export class SyobocalUpdater {
           },
           update: {
             anime: { connect: { id: animeIdFromMap } },
-            channel: { connect: { id: channelId } },
+            channel: { connect: { id: channel.id } },
             st_time: new Date(prog.StTime[0].replace(/_/g, ' ')),
             ed_time: new Date(prog.EdTime[0].replace(/_/g, ' ')),
             count: prog.Count[0] ? parseInt(prog.Count[0]) : null,

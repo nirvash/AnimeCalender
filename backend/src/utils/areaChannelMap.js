@@ -202,3 +202,4 @@ exports.areaChannelMap = {
         "282" // 異世界ファンタジー
     ]
 };
+//# sourceMappingURL=areaChannelMap.js.map

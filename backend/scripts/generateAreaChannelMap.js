@@ -47,3 +47,4 @@ main()
     .finally(() => __awaiter(void 0, void 0, void 0, function* () {
     yield prisma.$disconnect();
 }));
+//# sourceMappingURL=generateAreaChannelMap.js.map

@@ -85,3 +85,4 @@ updateChannels().catch(e => {
     console.error(e);
     process.exit(1);
 });
+//# sourceMappingURL=update_channels.js.map

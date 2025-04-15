@@ -186,14 +186,14 @@ const handleToday = () => {
     try {
       setIsLoading(true);
       setError(null);
-      // PATCHリクエストで視聴中状態をサーバーに送信
-      const res = await fetch(`/api/watchlist/${id}`, {
-        method: 'PATCH',
+      // POSTリクエストで視聴中状態をサーバーに送信（/api/watch-status）
+      const res = await fetch('/api/watch-status', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ is_watching: newValue })
+        body: JSON.stringify({ episodeId: id, watched: newValue })
       });
       if (!res.ok) {
         let errorMsg = `Error: ${res.status}`;

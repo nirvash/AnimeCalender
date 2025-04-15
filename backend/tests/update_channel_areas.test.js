@@ -73,3 +73,4 @@ describe('updateAreas', () => {
         expect(mockPrismaClient.$disconnect).toHaveBeenCalled();
     }));
 });
+//# sourceMappingURL=update_channel_areas.test.js.map

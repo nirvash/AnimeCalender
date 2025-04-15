@@ -323,6 +323,8 @@ router.get('/api/timetable', authenticateToken, (req, res) => __awaiter(void 0, 
                 where: { user_id: userId },
                 select: { channel_id: true }
             });
+            console.log('userChannels:', userChannels);
+            console.log('channelIds:', channelIds);
             channelIds = userChannels.map(uc => uc.channel_id);
         }
         if (channelIds.length === 0) {
@@ -333,9 +335,10 @@ router.get('/api/timetable', authenticateToken, (req, res) => __awaiter(void 0, 
         whereCondition.channel_id = {
             in: channelIds
         };
+        // 視聴中のみフィルタ時のみanime_id条件を追加
         if (watchingOnly === 'true') {
             const watchingAnimes = yield prisma.userAnime.findMany({
-                where: { user_id: userId }
+                where: { user_id: userId, status: 'WATCHING' }
             });
             if (watchingAnimes.length === 0) {
                 res.json([]);
@@ -345,6 +348,22 @@ router.get('/api/timetable', authenticateToken, (req, res) => __awaiter(void 0, 
                 in: watchingAnimes.map(ua => ua.anime_id)
             };
         }
+        if (watchingOnly === 'true') {
+            const watchingAnimes = yield prisma.userAnime.findMany({
+                where: { user_id: userId, status: 'WATCHING' }
+            });
+            if (watchingAnimes.length === 0) {
+                res.json([]);
+                return;
+            }
+            whereCondition.anime_id = {
+                in: watchingAnimes.map(ua => ua.anime_id)
+            };
+        }
+        // 全userAnime（視聴中も含む）を取得
+        const userAnimes = yield prisma.userAnime.findMany({
+            where: { user_id: userId }
+        });
         const episodes = yield prisma.episode.findMany({
             where: whereCondition,
             include: {
@@ -369,7 +388,10 @@ router.get('/api/timetable', authenticateToken, (req, res) => __awaiter(void 0, 
         });
         console.log('🔍 Database Query Condition:', JSON.stringify(whereCondition, null, 2));
         console.log(`🔍 Found ${episodes.length} episodes.`);
-        res.json(episodes);
+        // 各エピソードにis_watchingフラグを付与
+        const watchingSet = new Set(userAnimes.filter(ua => ua.status === 'WATCHING').map(ua => `${ua.anime_id}_${ua.channel_id}`));
+        const episodesWithFlag = episodes.map(ep => (Object.assign(Object.assign({}, ep), { is_watching: watchingSet.has(`${ep.anime_id}_${ep.channel_id}`) })));
+        res.json(episodesWithFlag);
     }
     catch (err) {
         console.error("Error fetching timetable:", err);
@@ -438,13 +460,13 @@ router.post('/api/watch-status', authenticateToken, (req, res) => __awaiter(void
             },
             update: {
                 last_watched: watched ? new Date() : null,
-                status: watched ? 'WATCHED' : 'PLANNED'
+                status: watched ? 'WATCHING' : 'PLANNED'
             },
             create: {
                 user_id: userId,
                 anime_id: episode.anime_id,
                 channel_id: episode.channel_id,
-                status: watched ? 'WATCHED' : 'PLANNED',
+                status: watched ? 'WATCHING' : 'PLANNED',
                 last_watched: watched ? new Date() : null
             }
         });
@@ -540,3 +562,6 @@ console.log("Starting HTTPS server...");
 https_1.default.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
     console.log(`Backend API server running securely on port ${PORT}`);
 });
+// テスト用にExpressアプリをエクスポート
+exports.default = app;
+//# sourceMappingURL=index.js.map
