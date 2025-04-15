@@ -173,6 +173,7 @@ return { success: true, channelIds: updatedChannelIds };
   const areaOrder = [
     '関東',
     '東京',
+    'NHK',
     'BS',
     'CS',
     '関西',

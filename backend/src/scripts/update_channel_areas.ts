@@ -7,52 +7,7 @@ export function setPrismaClient(client: PrismaClient) {
   prisma = client;
 }
 
-const areaUpdates = [
-  // NHK
-  { namePattern: 'NHK総合', area: '関東', exclude: ['大阪', '札幌', '名古屋', '福岡'] },
-  { namePattern: 'NHK総合・東京', area: '関東' },
-  { namePattern: 'NHK総合・大阪', area: '関西' },
-  { namePattern: 'NHK総合・名古屋', area: '中部' },
-  { namePattern: 'NHK総合・札幌', area: '北海道' },
-  { namePattern: 'NHK総合・福岡', area: '九州' },
-  { namePattern: 'NHK Eテレ', area: '関東', exclude: ['大阪', '札幌', '名古屋', '福岡'] },
-  { namePattern: 'NHK教育', area: '関東', exclude: ['大阪', '札幌', '名古屋', '福岡'] },
-
-  // 民放キー局
-  { namePattern: '日本テレビ', area: '関東' },
-  { namePattern: 'テレビ朝日', area: '関東' },
-  { namePattern: 'TBS', area: '関東' },
-  { namePattern: 'フジテレビ', area: '関東' },
-  { namePattern: 'テレビ東京', area: '関東' },
-
-  // 準キー局
-  { namePattern: '読売テレビ', area: '関西' },
-  { namePattern: '毎日放送', area: '関西' },
-  { namePattern: '関西テレビ', area: '関西' },
-  { namePattern: 'ABC', area: '関西' },
-  { namePattern: 'テレビ大阪', area: '関西' },
-
-  // 独立局
-  { namePattern: 'TOKYO MX', area: '東京' },
-  { namePattern: 'テレビ神奈川', area: '神奈川' },
-  { namePattern: 'サンテレビ', area: '兵庫' },
-  { namePattern: 'TVK', area: '神奈川' },
-  { namePattern: 'チバテレビ', area: '千葉' },
-  { namePattern: 'テレ玉', area: '埼玉' },
-
-  // BS・CS
-  { namePattern: 'NHK BS', area: 'BS' },
-  { namePattern: 'BS日テレ', area: 'BS' },
-  { namePattern: 'BS朝日', area: 'BS' },
-  { namePattern: 'BS-TBS', area: 'BS' },
-  { namePattern: 'BSフジ', area: 'BS' },
-  { namePattern: 'BS11', area: 'BS' },
-  { namePattern: 'BSテレ東', area: 'BS' },
-  { namePattern: 'WOWOW', area: 'BS' },
-  { namePattern: 'AT-X', area: 'CS' },
-  { namePattern: 'アニマックス', area: 'CS' },
-  { namePattern: 'キッズステーション', area: 'CS' }
-];
+import { areaChannelMap } from '../utils/areaChannelMap';
 
 
 export async function updateAreas() {
@@ -60,31 +15,26 @@ export async function updateAreas() {
     console.log('放送局のエリア情報更新を開始');
 
     let updatedCount = 0;
-    for (const update of areaUpdates) {
-      // チャンネルの検索条件を作成
-      const where: any = {
-        name: {
-          startsWith: update.namePattern
-        }
-      };
-
-      // 除外パターンがある場合は適用
-      if (update.exclude) {
-        where.NOT = update.exclude.map(ex => ({ name: `${update.namePattern}・${ex}` }));
+    // syobocal_cid→エリアの逆引きマップを作成
+    const cidToArea = new Map<string, string>();
+    for (const [area, cids] of Object.entries(areaChannelMap)) {
+      for (const cid of cids) {
+        cidToArea.set(cid, area);
       }
-
-      const channels = await prisma.channel.findMany({
-        where,
-        select: { id: true, name: true }
-      });
-
-      // 見つかったチャンネルのエリアを更新
-      if (channels && channels.length > 0) {
-        for (const channel of channels) {
-          await prisma.channel.update({
-            where: { id: channel.id },
-            data: { area: update.area }
+    }
+    // 全チャンネル取得し、マップに該当するものだけareaを更新
+    const channels = await prisma.channel.findMany({ select: { id: true, syobocal_cid: true } });
+    for (const ch of channels) {
+      const area = cidToArea.get(ch.syobocal_cid);
+      if (area) {
+        if (!area) {
+          console.log(`no area for syobocal_cid: "${ch.syobocal_cid}"`);
+        } else {
+          const result = await prisma.channel.update({
+            where: { id: ch.id },
+            data: { area }
           });
+          console.log(`updated id: ${ch.id}, syobocal_cid: "${ch.syobocal_cid}", area: ${area}, result.area: ${result.area}`);
           updatedCount++;
         }
       }
@@ -106,4 +56,9 @@ export async function updateAreas() {
   } finally {
     await prisma.$disconnect();
   }
+}
+
+// スクリプトとして直接実行された場合のみ処理を開始
+if (require.main === module) {
+  updateAreas();
 }
