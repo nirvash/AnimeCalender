@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "predev": "tsc",
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
     "test": "jest",
     "update-data": "ts-node src/scripts/update_data.ts",

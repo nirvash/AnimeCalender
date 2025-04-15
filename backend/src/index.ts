@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction, RequestHandler } from 'express';
+import express, { Request, Response, NextFunction, RequestHandler, Express } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import jwt from 'jsonwebtoken';
@@ -6,23 +6,31 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import https from 'https';
 import fs from 'fs';
+import { ParamsDictionary } from 'express-serve-static-core';
+import { ParsedQs } from 'qs';
 
 const prisma = new PrismaClient();
-const router = express.Router();
+const router = express.Router() as express.Router;
 const app = express();
 
+console.log("Initializing application...");
 const httpsOptions = {
   key: fs.readFileSync('server.key'),
   cert: fs.readFileSync('server.crt'),
 };
+console.log("HTTPS options loaded.");
 const PORT = parseInt(process.env.PORT || '3001', 10);
+console.log(`PORT set to ${PORT}`);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key';
+console.log("JWT secret initialized.");
 
 // CORS設定をより明示的に指定
 const allowedOrigin = 'https://bookish-space-capybara-pgr4p9qwvvf9xp5-5173.app.github.dev';
 
 app.use(cors()); // すべてのオリジンを許可
+console.log("CORS enabled.");
 app.use(bodyParser.json());
+console.log("Body parser enabled.");
 
 // カスタム型定義
 interface JwtPayload {
@@ -74,27 +82,101 @@ const authenticateToken = async (req: RequestWithUser, res: Response, next: Next
   }
 };
 
-// 認証関連のエンドポイント
-router.post('/api/auth/register', async (req: Request, res: Response) => {
+router.post('/api/auth/register', async (req: Request, res: Response): Promise<void> => {
   try {
     const { username, email, password } = req.body;
+
+    // 入力バリデーション
     if (!username || !email || !password) {
       res.status(400).json({ message: 'username, email, passwordは必須です' });
       return;
     }
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      res.status(409).json({ message: '既に登録済みのメールアドレスです' });
+
+    if (password.length < 8) {
+      res.status(400).json({ message: 'パスワードは8文字以上必要です' });
       return;
     }
-    const password_hash = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
-      data: { username, email, password_hash }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ message: '有効なメールアドレスを入力してください' });
+      return;
+    }
+
+    const result = await prisma.$transaction<{ id: number; username: string; email: string } | null>(async (tx) => {
+      const existingUser = await tx.user.findFirst({
+        where: { OR: [{ email }, { username }] }
+      });
+    
+      if (existingUser) {
+        if (existingUser.email === email) {
+          res.status(409).json({ message: '既に登録済みのメールアドレスです' });
+          return null;
+        } else {
+          res.status(409).json({ message: '既に使用されているユーザー名です' });
+          return null;
+        }
+      }
+    
+      const password_hash = await bcrypt.hash(password, 12);
+    
+      const user = await tx.user.create({
+        data: { username, email, password_hash }
+      });
+    
+      const defaultChannels = await tx.channel.findMany({
+        where: { name: { in: ['TOKYO MX', 'BS11', 'AT-X'] } },
+        select: { id: true }
+      });
+    
+      if (defaultChannels.length > 0) {
+        await tx.userChannel.createMany({
+          data: defaultChannels.map(ch => ({
+            user_id: user.id,
+            channel_id: ch.id
+          }))
+        });
+      }
+    
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      };
+    });   
+
+    if (!result) {
+      res.status(500).json({ message: 'Internal server error: Transaction failed' });
+      return;
+    }
+
+    const token = jwt.sign(
+      { userId: result.id, username: result.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      token,
+      user: {
+        id: result.id,
+        username: result.username,
+        email: result.email
+      }
     });
-    const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id: user.id, username: user.username, email: user.email } });
+    return;
   } catch (err: any) {
-    res.status(500).json({ message: 'Internal server error', error: err.message });
+    console.error('Registration error:', err);
+
+    if (err.message.includes('既に')) {
+      res.status(409).json({ message: err.message });
+      return;
+    } else {
+      res.status(500).json({
+        message: 'アカウント登録に失敗しました',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+      return;
+    }
   }
 });
 
@@ -344,7 +426,6 @@ router.get('/api/user/channels', authenticateToken, async (req: RequestWithUser,
       return;
     }
 
-    console.log('Fetching channels for user:', userId);
     const userChannels = await prisma.userChannel.findMany({
       where: { user_id: userId },
       include: { channel: { select: { id: true, name: true, syobocal_cid: true, area: true } } }
@@ -356,6 +437,55 @@ router.get('/api/user/channels', authenticateToken, async (req: RequestWithUser,
   }
 });
 
+// 視聴状態更新API
+router.post('/api/watch-status', authenticateToken, async (req: RequestWithUser, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { episodeId, watched } = req.body;
+
+    if (!userId || !episodeId) {
+      res.status(400).json({ message: '必要なパラメータが不足しています' });
+      return;
+    }
+
+    const episode = await prisma.episode.findUnique({
+      where: { id: episodeId },
+      select: { anime_id: true, channel_id: true }
+    });
+
+    if (!episode) {
+      res.status(404).json({ message: 'エピソードが見つかりません' });
+      return;
+    }
+
+    await prisma.userAnime.upsert({
+      where: {
+        user_id_anime_id_channel_id: {
+          user_id: userId,
+          anime_id: episode.anime_id,
+          channel_id: episode.channel_id
+        }
+      },
+      update: {
+        last_watched: watched ? new Date() : null,
+        status: watched ? 'WATCHED' : 'PLANNED'
+      },
+      create: {
+        user_id: userId,
+        anime_id: episode.anime_id,
+        channel_id: episode.channel_id,
+        status: watched ? 'WATCHED' : 'PLANNED',
+        last_watched: watched ? new Date() : null
+      }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('視聴状態更新エラー:', error);
+    res.status(500).json({ message: '視聴状態の更新に失敗しました' });
+  }
+});
+ 
 // ユーザーの選択放送局保存API
 router.post('/api/user/channels', authenticateToken, async (req: RequestWithUser, res: Response) => {
   try {
@@ -436,8 +566,17 @@ router.post('/api/user/channels', authenticateToken, async (req: RequestWithUser
   }
 });
 
-app.use(router);
+console.log("Router middleware before applied.");
+try {
+  app.use(router);
+  console.log("Router middleware applied.");
+} catch (error) {
+  console.error("Error applying router middleware:", error);
+}
+console.log("Router middleware applied.");
 
+console.log(`Using PORT: ${PORT}`);
+console.log("Starting HTTPS server...");
 https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
   console.log(`Backend API server running securely on port ${PORT}`);
 });
