@@ -56,7 +56,7 @@ describe('updateAreas', () => {
         });
         // 未設定チャンネルの確認が行われたことを確認
         expect(mockPrismaClient.channel.count).toHaveBeenCalledWith({
-            where: { area: null }
+            where: { OR: [{ area: null }, { area: '' }] }
         });
     }));
     it('エラー時に適切に処理されること', () => __awaiter(void 0, void 0, void 0, function* () {

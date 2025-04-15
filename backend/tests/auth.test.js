@@ -81,7 +81,9 @@ app.get('/api/auth/protected', authenticateToken, (req, res) => {
     res.json({ message: '認証済み', user: req.user });
 });
 beforeAll(() => __awaiter(void 0, void 0, void 0, function* () {
-    // テスト用DBをクリーンアップ
+    // テスト用DBをクリーンアップ（外部キー制約を考慮した順序）
+    yield prisma.userAnime.deleteMany();
+    yield prisma.userChannel.deleteMany();
     yield prisma.user.deleteMany();
 }));
 afterAll(() => __awaiter(void 0, void 0, void 0, function* () {

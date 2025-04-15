@@ -288,15 +288,19 @@ router.get('/api/timetable', authenticateToken, (req, res) => __awaiter(void 0, 
         // チャンネルフィルタの処理
         let channelIds = [];
         if (channels) {
-            // URLパラメータから指定されたチャンネルIDをsyobocal_cidに基づいて検索
+            // URLパラメータから指定されたチャンネルID（syobocal_cid）を内部ID（id）に変換
+            const syobocalCids = String(channels).split(',').map(id => id.trim());
             const specifiedChannels = yield prisma.channel.findMany({
                 where: {
                     syobocal_cid: {
-                        in: String(channels).split(',').map(id => id.trim())
+                        in: syobocalCids
                     }
                 },
-                select: { id: true }
+                select: { id: true, syobocal_cid: true }
             });
+            // ログ出力で変換状況を確認
+            console.log('syobocalCids:', syobocalCids);
+            console.log('matched channel ids:', specifiedChannels.map(ch => ch.id));
             channelIds = specifiedChannels.map(ch => ch.id);
         }
         else {

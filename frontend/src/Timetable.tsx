@@ -8,6 +8,7 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import TodayIcon from '@mui/icons-material/Today';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import { getTimetableTodayDate, addTimetableDays } from './timetableDateUtils';
 // Episodeデータの型定義（APIレスポンスに合わせて調整が必要）
 // backend/schema.prisma や API実装を参考に定義
 // ユーザーの選択した放送局の型定義
@@ -52,23 +53,29 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
 
   // viewModeとcurrentDateに基づいてstartDateとendDateを計算する関数
   const calculateDateRange = (mode: 'day' | '3days' | 'week', baseDate: Date): { startDate: string, endDate: string } => {
+    // 28時制で考えると、表示開始日の22:00から翌日の4:00（28:00）までが1日分
     const start = new Date(baseDate);
-    start.setHours(0, 0, 0, 0); // 日付の開始時刻に設定
+    start.setHours(0, 0, 0, 0);
+    // 前日の22:00から表示開始
+    start.setDate(start.getDate() - 1);
+    start.setHours(22, 0, 0, 0);
 
     const end = new Date(start);
-
     switch (mode) {
       case 'day':
-        // 終了日は開始日と同じ
+        // 当日の28:00（翌日の4:00）まで
+        end.setDate(start.getDate() + 1);
+        end.setHours(4, 0, 0, 0);
         break;
       case '3days':
-        end.setDate(start.getDate() + 2); // 開始日 + 2日 = 3日間
+        end.setDate(start.getDate() + 3);
+        end.setHours(4, 0, 0, 0);
         break;
       case 'week':
-        end.setDate(start.getDate() + 6); // 開始日 + 6日 = 7日間
+        end.setDate(start.getDate() + 7);
+        end.setHours(4, 0, 0, 0);
         break;
     }
-    end.setHours(23, 59, 59, 999); // 日付の終了時刻に設定
 
     // YYYY-MM-DD形式にフォーマット
     const formatDate = (date: Date) => date.toISOString().split('T')[0];
@@ -97,11 +104,13 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
       }
 
       const userChannels = await userChannelsResponse.json();
-      // syobocal_cidを文字列として送信
+      console.log('userChannels:', userChannels);
+      // userChannelsが [{channel: {...}}] 形式の場合に対応
       const channelIds = userChannels
-        .map((ch: Channel) => ch.syobocal_cid?.toString())
+        .map((uc: any) => (uc.channel ? uc.channel.syobocal_cid : uc.syobocal_cid))
         .filter(Boolean)
         .join(',');
+      console.log('channelIds:', channelIds);
 
       // タイムテーブルデータを取得（選択された放送局でフィルタリング）
       const response = await fetch(`/api/timetable?startDate=${startDate}&endDate=${endDate}&watchingOnly=${watchingOnly}&channels=${channelIds}`, {
@@ -123,6 +132,7 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
       }
 
       const data: Episode[] = await response.json();
+      console.log('episodes:', data);
       setEpisodes(data);
     } catch (error) {
       console.error("Failed to fetch timetable data:", error);
@@ -153,7 +163,9 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
   };
 
   const handleToday = () => {
-    setCurrentDate(new Date());
+    const today = getTimetableTodayDate(new Date());
+    console.log('[handleToday] today:', today, today.toISOString(), today.toLocaleString('ja-JP'));
+    setCurrentDate(today);
   }
 
   // 表示期間の文字列生成
@@ -166,13 +178,15 @@ const Timetable: React.FC<TimetableProps> = ({ token }) => {
   }
 
   // グリッド用日付配列生成
-  const { startDate, endDate } = calculateDateRange(viewMode, currentDate);
-  const days = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    days.push(new Date(d));
+  // 28時制ベースで日付列を生成
+  let numDays = 1;
+  if (viewMode === '3days') numDays = 3;
+  if (viewMode === 'week') numDays = 7;
+  const days: Date[] = [];
+  for (let i = 0; i < numDays; i++) {
+    days.push(addTimetableDays(currentDate, i));
   }
+  console.log('28h days:', days.map(d => d.toLocaleDateString('ja-JP')));
 
   // 22:00〜28:00（翌4:00）までの30分単位の時間ラベル
   const timeLabels: string[] = [];

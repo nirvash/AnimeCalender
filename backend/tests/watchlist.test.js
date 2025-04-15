@@ -111,6 +111,51 @@ app.get('/api/watchlist/unwatched', authenticateToken, (req, res) => __awaiter(v
         res.status(500).json({ message: 'Internal server error' });
     }
 }));
+// 視聴状態更新API（テスト用）
+app.post('/api/watch-status', authenticateToken, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        const { episodeId, watched } = req.body;
+        if (!userId || !episodeId) {
+            res.status(400).json({ message: '必要なパラメータが不足しています' });
+            return;
+        }
+        const episode = yield prisma.episode.findUnique({
+            where: { pid: episodeId },
+            select: { anime_id: true, channel_id: true }
+        });
+        if (!episode) {
+            res.status(404).json({ message: 'エピソードが見つかりません' });
+            return;
+        }
+        yield prisma.userAnime.upsert({
+            where: {
+                user_id_anime_id_channel_id: {
+                    user_id: userId,
+                    anime_id: episode.anime_id,
+                    channel_id: episode.channel_id
+                }
+            },
+            update: {
+                last_watched: watched ? new Date() : null,
+                status: watched ? 'WATCHED' : 'PLANNED'
+            },
+            create: {
+                user_id: userId,
+                anime_id: episode.anime_id,
+                channel_id: episode.channel_id,
+                status: watched ? 'WATCHED' : 'PLANNED',
+                last_watched: watched ? new Date() : null
+            }
+        });
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('視聴状態更新エラー:', error);
+        res.status(500).json({ message: '視聴状態の更新に失敗しました' });
+    }
+}));
 beforeAll(() => __awaiter(void 0, void 0, void 0, function* () {
     // テストデータのセットアップ（外部キー制約を考慮した順序）
     yield prisma.episode.deleteMany();
@@ -228,6 +273,23 @@ describe('視聴リスト管理API', () => {
             expect(Array.isArray(res.body)).toBe(true);
             expect(res.body.length).toBe(1);
             expect(res.body[0].anime.title).toBe('テストアニメ2');
+        }));
+    });
+    describe('POST /api/watch-status', () => {
+        it('認証なしだと401エラー', () => __awaiter(void 0, void 0, void 0, function* () {
+            const res = yield (0, supertest_1.default)(app)
+                .post('/api/watch-status')
+                .send({ episodeId: 1001, watched: true });
+            expect(res.status).toBe(401);
+        }));
+        it('認証ありで視聴状態を更新できる', () => __awaiter(void 0, void 0, void 0, function* () {
+            const res = yield (0, supertest_1.default)(app)
+                .post('/api/watch-status')
+                .set('Authorization', `Bearer ${jwtToken}`)
+                .send({ episodeId: 1001, watched: true });
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            // DBの状態も確認したい場合はここでuserAnimeを取得して検証可能
         }));
     });
 });

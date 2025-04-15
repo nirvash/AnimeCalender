@@ -25,8 +25,25 @@ describe('SyobocalClient', () => {
     });
     describe('getTitles', () => {
         it('タイトル情報を取得できること', () => __awaiter(void 0, void 0, void 0, function* () {
-            // モックレスポンスの設定
-            const mockResponse = {
+            // getPrograms用のモックレスポンス
+            const mockProgResponse = {
+                data: `
+          <?xml version="1.0" encoding="UTF-8"?>
+          <ProgLookupResponse>
+            <ProgItems>
+              <ProgItem id="1">
+                <TID>7328</TID>
+              </ProgItem>
+            </ProgItems>
+            <Result>
+              <Code>200</Code>
+              <Message></Message>
+            </Result>
+          </ProgLookupResponse>
+        `
+            };
+            // TitleLookupResponse用のモックレスポンス
+            const mockTitleResponse = {
                 data: `
           <?xml version="1.0" encoding="UTF-8"?>
           <TitleLookupResponse>
@@ -52,12 +69,14 @@ describe('SyobocalClient', () => {
           </TitleLookupResponse>
         `
             };
-            mockedAxios.get.mockResolvedValueOnce(mockResponse);
+            mockedAxios.get.mockResolvedValueOnce(mockProgResponse); // getPrograms用
+            mockedAxios.get.mockResolvedValueOnce(mockTitleResponse); // getTitles用
             const result = yield client.getTitles();
             expect(mockedAxios.get).toHaveBeenCalledWith('http://cal.syoboi.jp/db.php', expect.objectContaining({
-                params: {
-                    Command: 'TitleLookup'
-                }
+                params: expect.objectContaining({ Command: 'ProgLookup' })
+            }));
+            expect(mockedAxios.get).toHaveBeenCalledWith('http://cal.syoboi.jp/db.php', expect.objectContaining({
+                params: expect.objectContaining({ Command: 'TitleLookup', TID: '7328' })
             }));
             expect(result).toEqual([{
                     $: { id: '7328' },

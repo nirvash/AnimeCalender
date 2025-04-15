@@ -163,8 +163,7 @@ class SyobocalUpdater {
                 }
                 const pid = parseInt(prog.PID[0]);
                 const animeId = parseInt(prog.TID[0]);
-                const syobocalCid = prog.ChID[0];
-                let channelId = null;
+                const channelId = parseInt(prog.ChID[0]);
                 try {
                     // アニメが登録済みか確認
                     const animeIdFromMap = registeredAnimeIds.get(prog.TID[0]);
@@ -172,16 +171,15 @@ class SyobocalUpdater {
                         console.warn(`⚠️ Skipping program ${pid}: anime ${prog.TID[0]} was not registered successfully`);
                         continue;
                     }
-                    // チャンネルの存在確認（syobocal_cidで検索）
-                    const channel = yield this.prisma.channel.findUnique({ where: { syobocal_cid: syobocalCid } });
+                    // チャンネルの存在確認
+                    const channel = yield this.prisma.channel.findUnique({ where: { id: channelId } });
                     if (!channel) {
                         console.warn(`⚠️ Skipping program ${pid} due to missing channel:`, {
                             anime_id: animeId,
-                            channel_syobocal_cid: syobocalCid
+                            channel_id: channelId
                         });
                         continue;
                     }
-                    channelId = channel.id;
                     // エピソード情報を更新
                     yield this.prisma.episode.upsert({
                         where: { pid },
