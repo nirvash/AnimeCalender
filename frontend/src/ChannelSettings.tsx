@@ -75,6 +75,7 @@ export default function ChannelSettings({ token }: Props) {
 
       if (userChannelsResponse.ok) {
         const userChannelsData = await userChannelsResponse.json();
+        console.log('User Channels Data:', userChannelsData); // デバッグ用
         setSelectedChannels(userChannelsData.map((ch: Channel) => ch.id));
       } else {
         // ユーザー設定が未保存の場合はキー局を初期選択
@@ -169,7 +170,7 @@ return { success: true, channelIds: updatedChannelIds };
     '千葉',
     '埼玉',
     '兵庫',
-    '未分類'
+    '未分類' // Ensure "未分類" is at the end
   ];
 
   const groupedChannels = channels.reduce((groups: { name: string, channels: Channel[] }[], channel) => {
@@ -188,8 +189,8 @@ return { success: true, channelIds: updatedChannelIds };
 
   // グループをエリア順でソート
   groupedChannels.sort((a, b) => {
-    const orderA = areaOrder.indexOf(a.name);
-    const orderB = areaOrder.indexOf(b.name);
+    const orderA = areaOrder.indexOf(a.name) !== -1 ? areaOrder.indexOf(a.name) : areaOrder.length;
+    const orderB = areaOrder.indexOf(b.name) !== -1 ? areaOrder.indexOf(b.name) : areaOrder.length;
     return orderA - orderB;
   });
 

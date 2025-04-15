@@ -1,6 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Channel } from '@prisma/client';
 
-const prisma = new PrismaClient();
+let prisma = new PrismaClient();
+
+// テスト用にPrismaClientを置き換えられるようにする
+export function setPrismaClient(client: PrismaClient) {
+  prisma = client;
+}
 
 const areaUpdates = [
   // NHK
@@ -49,31 +54,43 @@ const areaUpdates = [
   { namePattern: 'キッズステーション', area: 'CS' }
 ];
 
-async function updateAreas() {
+
+export async function updateAreas() {
   try {
     console.log('放送局のエリア情報更新を開始');
 
     let updatedCount = 0;
     for (const update of areaUpdates) {
-      const channels = await prisma.channel.findMany({
-        where: {
-          name: {
-            contains: update.namePattern
-          },
-          AND: update.exclude ? {
-            name: {
-              notIn: update.exclude.map(ex => `${update.namePattern}・${ex}`)
-            }
-          } : undefined
+      // チャンネルの検索条件を作成
+      const where: any = {
+        name: {
+          contains: update.namePattern
         }
+      };
+
+      // 除外パターンがある場合は適用
+      if (update.exclude) {
+        where.AND = {
+          name: {
+            notIn: update.exclude.map(ex => `${update.namePattern}・${ex}`)
+          }
+        };
+      }
+
+      const channels = await prisma.channel.findMany({
+        where,
+        select: { id: true, name: true }
       });
 
-      for (const channel of channels) {
-        await prisma.channel.update({
-          where: { id: channel.id },
-          data: { area: update.area }
-        });
-        updatedCount++;
+      // 見つかったチャンネルのエリアを更新
+      if (channels && channels.length > 0) {
+        for (const channel of channels) {
+          await prisma.channel.update({
+            where: { id: channel.id },
+            data: { area: update.area }
+          });
+          updatedCount++;
+        }
       }
     }
 
@@ -94,8 +111,3 @@ async function updateAreas() {
     await prisma.$disconnect();
   }
 }
-
-updateAreas().catch(e => {
-  console.error(e);
-  process.exit(1);
-});
