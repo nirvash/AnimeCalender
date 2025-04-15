@@ -23,7 +23,8 @@
   grid-template-rows: 2.5rem repeat(48, 1fr); /* 30分×24h */
   border: 1px solid #e0e0e0;
   border-radius: 12px;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
   background: #fffbe7; /* パステルイエロー */
 }
 
@@ -54,9 +55,8 @@
   margin: 2px;
   padding: 0.3rem 0.5rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  display: block;
+  /* justify-content: flex-start; 削除でタイトルが上詰め・省略されず最大表示 */
   transition: box-shadow 0.2s, background 0.2s;
   cursor: pointer;
   font-size: 0.98rem;
@@ -93,6 +93,9 @@
 .checkbox {
   margin-top: 0.2rem;
   align-self: flex-end;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
 }
 
 @media (max-width: 767px) {

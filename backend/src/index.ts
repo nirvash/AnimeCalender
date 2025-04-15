@@ -296,30 +296,39 @@ router.get('/api/timetable', authenticateToken, async (req: RequestWithUser, res
       return;
     }
 
-    const { startDate, endDate, watchingOnly, channels } = req.query;
+    const { startDate, endDate, startDateTime, endDateTime, watchingOnly, channels } = req.query;
     console.log('Received channels parameter:', channels);
 
-    if (!startDate || !endDate) {
-      res.status(400).json({ message: 'startDateとendDateは必須です' });
-      return;
-    }
-
-    const startDateStr = String(startDate);
-    const endDateStr = String(endDate);
-
-    // 日本時間として解釈
-    const start = new Date(`${startDateStr}T00:00:00+09:00`);
-    const end = new Date(`${endDateStr}T23:59:59+09:00`);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      res.status(400).json({ message: '日付の形式が正しくありません (YYYY-MM-DD)' });
+    // 日時優先、なければ従来の日付で対応
+    let rangeStart: Date | null = null;
+    let rangeEnd: Date | null = null;
+    if (startDateTime && endDateTime) {
+      // ISO文字列でそのまま解釈
+      rangeStart = new Date(String(startDateTime));
+      rangeEnd = new Date(String(endDateTime));
+      if (isNaN(rangeStart.getTime()) || isNaN(rangeEnd.getTime())) {
+        res.status(400).json({ message: 'startDateTime/endDateTimeの形式が正しくありません (ISO 8601)' });
+        return;
+      }
+    } else if (startDate && endDate) {
+      // 従来通り「日付」→ JST 0:00～23:59:59
+      const startDateStr = String(startDate);
+      const endDateStr = String(endDate);
+      rangeStart = new Date(`${startDateStr}T00:00:00+09:00`);
+      rangeEnd = new Date(`${endDateStr}T23:59:59+09:00`);
+      if (isNaN(rangeStart.getTime()) || isNaN(rangeEnd.getTime())) {
+        res.status(400).json({ message: 'startDate/endDateの形式が正しくありません (YYYY-MM-DD)' });
+        return;
+      }
+    } else {
+      res.status(400).json({ message: 'startDateTime/endDateTime もしくは startDate/endDate は必須です' });
       return;
     }
 
     let whereCondition: any = {
       st_time: {
-        gte: start,
-        lte: end,
+        gte: rangeStart,
+        lte: rangeEnd,
       }
     };
     
