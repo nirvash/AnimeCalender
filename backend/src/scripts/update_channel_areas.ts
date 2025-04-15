@@ -64,17 +64,13 @@ export async function updateAreas() {
       // チャンネルの検索条件を作成
       const where: any = {
         name: {
-          contains: update.namePattern
+          startsWith: update.namePattern
         }
       };
 
       // 除外パターンがある場合は適用
       if (update.exclude) {
-        where.AND = {
-          name: {
-            notIn: update.exclude.map(ex => `${update.namePattern}・${ex}`)
-          }
-        };
+        where.NOT = update.exclude.map(ex => ({ name: `${update.namePattern}・${ex}` }));
       }
 
       const channels = await prisma.channel.findMany({
@@ -98,7 +94,7 @@ export async function updateAreas() {
 
     // 残りの未設定チャンネル数を表示
     const noAreaCount = await prisma.channel.count({
-      where: { area: null }
+      where: { OR: [ { area: null }, { area: '' } ] }
     });
     if (noAreaCount > 0) {
       console.log(`注意: エリア情報が未設定の放送局が ${noAreaCount} 件あります`);

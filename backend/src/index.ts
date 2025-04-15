@@ -408,11 +408,8 @@ router.get('/api/timetable', authenticateToken, async (req: RequestWithUser, res
 router.get('/api/channels', authenticateToken, async (req: RequestWithUser, res: Response) => {
   try {
     const channels = await prisma.channel.findMany({
-      select: { id: true, name: true, syobocal_cid: true }
+      select: { id: true, name: true, syobocal_cid: true, area: true }
     });
-
-    // エリア情報を自前で定義
-    res.json(channels);
     res.json(channels);
   } catch (err: any) {
     console.error('Error fetching channels:', err);

@@ -53,6 +53,12 @@ export default function ChannelSettings({ token }: Props) {
     return keyStationNames.some(name => channel.name.includes(name));
   };
 
+  // area値を正規化する関数
+  const normalizeArea = (area: string | null | undefined) => {
+    if (!area || area.trim() === '') return '未分類';
+    return area.trim();
+  };
+
   const fetchChannels = async () => {
     try {
       // チャンネル一覧を取得
@@ -64,7 +70,9 @@ export default function ChannelSettings({ token }: Props) {
       
       if (!channelsResponse.ok) throw new Error('チャンネル一覧の取得に失敗しました');
       const channelsData = await channelsResponse.json();
-      setChannels(channelsData);
+      // area値を正規化
+      const normalizedChannels = channelsData.map((ch: Channel) => ({ ...ch, area: normalizeArea(ch.area) }));
+      setChannels(normalizedChannels);
 
       // ユーザーの選択済み放送局を取得
       const userChannelsResponse = await fetch('/api/user/channels', {
@@ -75,11 +83,16 @@ export default function ChannelSettings({ token }: Props) {
 
       if (userChannelsResponse.ok) {
         const userChannelsData = await userChannelsResponse.json();
-        console.log('User Channels Data:', userChannelsData); // デバッグ用
-        setSelectedChannels(userChannelsData.map((ch: Channel) => ch.id));
+        // UserChannel型の場合、channel_idまたはchannel.idを取得
+        const userChannelIds = userChannelsData.map((uc: any) => {
+          if (uc.channel_id) return uc.channel_id;
+          if (uc.channel && uc.channel.id) return uc.channel.id;
+          return uc.id;
+        });
+        setSelectedChannels(userChannelIds);
       } else {
         // ユーザー設定が未保存の場合はキー局を初期選択
-        const keyStations = channelsData.filter((ch: Channel) => isKeyStation(ch));
+        const keyStations = normalizedChannels.filter((ch: Channel) => isKeyStation(ch));
         setSelectedChannels(keyStations.map((ch: Channel) => ch.id));
       }
 
@@ -173,9 +186,10 @@ return { success: true, channelIds: updatedChannelIds };
     '未分類' // Ensure "未分類" is at the end
   ];
 
+  // グループ化
   const groupedChannels = channels.reduce((groups: { name: string, channels: Channel[] }[], channel) => {
-    const groupName = channel.area || '未分類';
-    const group = groups.find(g => g.name === groupName);
+    const groupName = normalizeArea(channel.area);
+    let group = groups.find(g => g.name === groupName);
     if (group) {
       group.channels.push(channel);
     } else {
@@ -189,9 +203,13 @@ return { success: true, channelIds: updatedChannelIds };
 
   // グループをエリア順でソート
   groupedChannels.sort((a, b) => {
-    const orderA = areaOrder.indexOf(a.name) !== -1 ? areaOrder.indexOf(a.name) : areaOrder.length;
-    const orderB = areaOrder.indexOf(b.name) !== -1 ? areaOrder.indexOf(b.name) : areaOrder.length;
-    return orderA - orderB;
+    const orderA = areaOrder.indexOf(a.name);
+    const orderB = areaOrder.indexOf(b.name);
+    const idxA = orderA !== -1 ? orderA : areaOrder.length;
+    const idxB = orderB !== -1 ? orderB : areaOrder.length;
+    // エリア名が同じ場合は五十音順
+    if (idxA === idxB) return a.name.localeCompare(b.name, 'ja');
+    return idxA - idxB;
   });
 
   return (
